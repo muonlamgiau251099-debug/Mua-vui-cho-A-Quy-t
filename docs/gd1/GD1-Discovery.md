@@ -69,7 +69,8 @@ Ví dụ: chỉ D bị cóng, D đang giữ 2♠, 2♥ và một tứ quý 7 →
 
 **Hệ quả tôi suy ra (cần xác nhận nếu sai):**
 - Tới trắng (D4) và đút mù (D10) đều zero-sum: +600 / −200 × 3, **không** cộng thêm điểm hạng 112–115.
-- Ván sau đút mù: người đút mù là người nhất nên được mở ván (ID 9). Ván sau tới trắng: mở bằng 3♣ (ID 60).
+- Ván sau tới trắng: mở bằng 3♣ (ID 60). Ván sau đút mù: **cũng mở bằng 3♣** (người giữ 3♣ đi trước) — yêu cầu mới
+  ghi đè cách hiểu ban đầu "người đút mù mở ván (ID 9)".
 - Thối hàng: 4 đôi thông chứa sẵn 3 đôi thông thì chỉ tính một bộ (200). Tứ quý 2 = 2×100 + 2×200 = 600, không tính thêm thối tứ quý.
 - Người về 3 lúc hết ván vẫn còn bài nhưng **không** bị xét thối (chỉ người bét bị xét).
 - Đút mù (D14): điểm chặt đã chốt trước đó trong ván vẫn giữ nguyên; người còn lại không bị xét thối, giống tới trắng.

@@ -25,8 +25,12 @@ export function GameResultPanel({ result, seats, yourSeat, onReady, onClose }: P
 
   return (
     <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="result-title">
-      <div className="dialog">
-        <h2 id="result-title">{END_LABEL[r.endType ?? ""] ?? "Kết quả"}</h2>
+      <div className="dialog modal result">
+        <div className="modal-head">
+          <h2 id="result-title">{END_LABEL[r.endType ?? ""] ?? "Kết quả"}</h2>
+        </div>
+        <div className="modal-body">
+        <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -55,6 +59,7 @@ export function GameResultPanel({ result, seats, yourSeat, onReady, onClose }: P
             })}
           </tbody>
         </table>
+        </div>
 
         {r.transfers.length > 0 && (
           <>
@@ -72,6 +77,7 @@ export function GameResultPanel({ result, seats, yourSeat, onReady, onClose }: P
           Tổng điểm 4 người: {r.net.reduce((a, b) => a + b, 0)} · Luật v{result.rules.version}
           {result.deckReveal && ` · bộ bài đã công bố để kiểm chứng (salt ${result.deckReveal.salt.slice(0, 8)}…)`}
         </p>
+        </div>
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
             Đóng

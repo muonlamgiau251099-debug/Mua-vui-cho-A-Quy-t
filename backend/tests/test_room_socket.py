@@ -337,3 +337,61 @@ def test_chat_cooldown_blocks_spam_even_after_reconnect(
     with connected(tc, room_id, tokens[0]) as ws:  # vào lại cũng không reset được thời gian chờ
         ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"phrase": "doomed"}})
         assert recv_until(ws, of_type("error"))["payload"]["code"] == "CHAT_COOLDOWN"
+
+
+def test_chat_new_preset_phrases_are_accepted(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
+    room_id, tokens = full_room
+    for index, phrase in enumerate(("spade3", "mistake", "undo")):
+        with connected(tc, room_id, tokens[index]) as ws:
+            ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"phrase": phrase}})
+            assert recv_until(ws, of_type("chat.message"))["payload"] == {"seat": index, "phrase": phrase}
+
+
+def test_free_text_chat_is_cleaned_and_broadcast(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
+    room_id, tokens = full_room
+    messy = "  Cho\te  đánh\nlại   được không \202e\u0007 "  # tab, xuống dòng, đảo chiều chữ, ký tự chuông
+    with connected(tc, room_id, tokens[2]) as sender, connected(tc, room_id, tokens[0]) as other:
+        sender.send_json({"type": "chat.send", "requestId": rid(), "payload": {"text": messy}})
+        for ws in (sender, other):
+            message = recv_until(ws, of_type("chat.message"))
+            assert message["payload"] == {"seat": 2, "text": "Cho e đánh lại được không"}
+
+
+def test_free_text_chat_validation(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
+    from app.realtime.chat import CHAT_MAX_LENGTH
+
+    room_id, tokens = full_room
+    bad_payloads: list[dict[str, object]] = [
+        {"text": ""},
+        {"text": "   \n\t "},  # chỉ có khoảng trắng
+        {"text": "\202e\u0007"},  # chỉ có ký tự điều khiển
+        {"text": "a" * (CHAT_MAX_LENGTH + 1)},  # quá dài
+        {"text": 123},
+        {"text": "xin chào", "phrase": "think"},  # gửi cả hai
+    ]
+    with connected(tc, room_id, tokens[0]) as ws:
+        for payload in bad_payloads:
+            ws.send_json({"type": "chat.send", "requestId": rid(), "payload": payload})
+            assert recv_until(ws, of_type("error"))["payload"]["code"] == "PAYLOAD_INVALID"
+        # Tin không hợp lệ không được tính vào thời gian chờ: gửi tin đúng độ dài tối đa vẫn được ngay.
+        ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"text": "a" * CHAT_MAX_LENGTH}})
+        assert recv_until(ws, of_type("chat.message"))["payload"]["text"] == "a" * CHAT_MAX_LENGTH
+
+
+def test_free_text_and_preset_share_one_cooldown(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
+    room_id, tokens = full_room
+    with connected(tc, room_id, tokens[0]) as ws:
+        ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"text": "ơ"}})
+        recv_until(ws, of_type("chat.message"))
+        ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"phrase": "think"}})
+        assert recv_until(ws, of_type("error"))["payload"]["code"] == "CHAT_COOLDOWN"
+        ws.send_json({"type": "chat.send", "requestId": rid(), "payload": {"text": "lại nữa"}})
+        assert recv_until(ws, of_type("error"))["payload"]["code"] == "CHAT_COOLDOWN"
+
+
+def test_free_text_keeps_emoji_sequences_intact() -> None:
+    from app.realtime.chat import normalize_chat_text
+
+    family = "👨‍👩‍👧"
+    assert normalize_chat_text(f"hi {family}") == f"hi {family}"
+    assert normalize_chat_text(None) is None

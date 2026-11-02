@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import type { SeatState } from "../api/guest";
 import { newerGame } from "../realtime/useRoomSocket";
-import { cardLabel, cardsLabel, sortHand } from "./cards";
+import { cardLabel, cardsLabel, insertionIndex, moveCard, sortHand } from "./cards";
+import { CHAT_MAX_LENGTH, cleanChatText } from "./chat";
 import { GameResultPanel } from "./GameResultPanel";
 import { describeEvent, GameTable, specialPlayLabel } from "./GameTable";
 import type { GameResult, GameView, LiveGame } from "./types";
@@ -95,25 +96,6 @@ test("tên hiển thị cho bài đặc biệt: heo, tứ quý, đôi thông", (
   expect(specialPlayLabel(null, [])).toBeNull();
 });
 
-test("chọn nhiều lá bằng cách kéo ngang qua bài, rồi đánh cùng lúc", () => {
-  const onPlay = vi.fn();
-  render(<GameTable game={live(view())} seats={seats} canAct error={null} onPlay={onPlay} onPass={vi.fn()} />);
-  // Bài trên tay đã xếp theo số: 3♣, 4♠, 10♦, 2♥ → kéo từ 3♣ tới 10♦ chọn 3 lá.
-  const cards = [1, 4, 30].map(
-    (c) => screen.getAllByRole("button").find((b) => b.dataset.cardIdx !== undefined && b.textContent === cardLabel(c))!,
-  );
-  const at = (el: HTMLElement) => {
-    document.elementFromPoint = () => el;
-  };
-  at(cards[0]!);
-  fireEvent.pointerDown(cards[0]!, { pointerType: "mouse", button: 0, buttons: 1 });
-  at(cards[2]!);
-  fireEvent.pointerMove(cards[2]!, { pointerType: "mouse", buttons: 1 });
-  fireEvent.pointerUp(cards[2]!, { pointerType: "mouse" });
-  expect(screen.getByRole("button", { name: "Đánh (3)" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Đánh (3)" }));
-  expect(onPlay).toHaveBeenCalledWith(expect.arrayContaining([1, 4, 30]));
-});
 
 test("hiện chữ 'nè !!!' khi đối thủ đánh tứ quý, không hiện với bài có sẵn lúc vào bàn", () => {
   const withTop = (top: number[] | null, combo: string | null) =>
@@ -199,43 +181,95 @@ test("3 con cùng số là 'Hút thuốc', riêng 3 con 2 giữ nguyên", () => 
   expect(specialPlayLabel("TRIPLE", [48, 49, 50])).toBe("3 con 2");
 });
 
-test("chat: chọn câu có sẵn thì gửi mã câu và khóa nút trong 10 giây", () => {
+const chatProps = { seats, canAct: true, error: null, onPlay: vi.fn(), onPass: vi.fn() };
+const openChat = () => fireEvent.click(screen.getByRole("button", { name: "💬 Chat" }));
+const chatSheet = () => screen.getByRole("dialog", { name: "Chat" });
+
+test("chat: bấm nút Chat mở card kéo lên với ô nhập, nút gửi (icon) và 11 câu có sẵn", () => {
+  render(<GameTable game={live(view())} {...chatProps} onChat={vi.fn()} />);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  openChat();
+  const sheet = chatSheet();
+  expect(within(sheet).getByRole("textbox", { name: "Tin nhắn" })).toHaveAttribute("maxlength", "60");
+  expect(within(sheet).getByRole("button", { name: "Gửi" })).toBeDisabled(); // chưa nhập gì
+  const presets = within(within(sheet).getByRole("group", { name: "Câu chat có sẵn" })).getAllByRole("button");
+  expect(presets).toHaveLength(11);
+  for (const text of ["Xin cây 3 bích", "Ơ a có đánh nhầm không?", "Cho e đánh lại được không"]) {
+    expect(within(sheet).getByRole("button", { name: text })).toBeInTheDocument();
+  }
+});
+
+test("chat: chọn câu có sẵn thì gửi mã câu, đóng card và khóa nút trong 10 giây", () => {
   vi.useFakeTimers();
   const onChat = vi.fn(() => true);
-  render(<GameTable game={live(view())} seats={seats} canAct error={null} onPlay={vi.fn()} onPass={vi.fn()} onChat={onChat} />);
-  fireEvent.click(screen.getByRole("button", { name: "💬 Chat" }));
-  expect(screen.getAllByRole("menuitem")).toHaveLength(8);
-  fireEvent.click(screen.getByRole("menuitem", { name: "Lẹ lên cha" }));
-  expect(onChat).toHaveBeenCalledWith("hurry");
-  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
+  openChat();
+  fireEvent.click(within(chatSheet()).getByRole("button", { name: "Lẹ lên cha" }));
+  expect(onChat).toHaveBeenCalledWith({ phrase: "hurry" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "💬 10s" })).toBeDisabled();
   act(() => void vi.advanceTimersByTime(10_500));
   expect(screen.getByRole("button", { name: "💬 Chat" })).toBeEnabled();
   vi.useRealTimers();
 });
 
-test("chat: gửi không được (mất kết nối) thì không bị khóa nút", () => {
+test("chat: nhập chữ tự do rồi bấm Gửi (hoặc Enter) → gửi chữ đã làm sạch", () => {
+  const onChat = vi.fn(() => true);
+  render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
+  openChat();
+  const input = within(chatSheet()).getByRole("textbox", { name: "Tin nhắn" });
+  fireEvent.change(input, { target: { value: "   " } });
+  expect(within(chatSheet()).getByRole("button", { name: "Gửi" })).toBeDisabled(); // chỉ có khoảng trắng
+  fireEvent.change(input, { target: { value: "  Cho e   đánh\tlại  " } });
+  expect(within(chatSheet()).getByRole("button", { name: "Gửi" })).toBeEnabled();
+  fireEvent.submit(input.closest("form")!); // Enter trên bàn phím ảo
+  expect(onChat).toHaveBeenCalledWith({ text: "Cho e đánh lại" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("chat: bấm ra ngoài card hoặc Esc thì đóng, không gửi gì", () => {
+  const onChat = vi.fn();
+  render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
+  openChat();
+  fireEvent.click(screen.getByRole("presentation")); // vùng mờ phía sau card
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  openChat();
+  fireEvent.click(within(chatSheet()).getByRole("textbox", { name: "Tin nhắn" })); // bấm trong card không đóng
+  expect(chatSheet()).toBeInTheDocument();
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(onChat).not.toHaveBeenCalled();
+});
+
+test("chat: gửi không được (mất kết nối) thì không bị khóa nút và card vẫn mở để thử lại", () => {
   const onChat = vi.fn(() => false);
-  render(<GameTable game={live(view())} seats={seats} canAct error={null} onPlay={vi.fn()} onPass={vi.fn()} onChat={onChat} />);
-  fireEvent.click(screen.getByRole("button", { name: "💬 Chat" }));
-  fireEvent.click(screen.getByRole("menuitem", { name: "Toang rồi" }));
+  render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
+  openChat();
+  fireEvent.click(within(chatSheet()).getByRole("button", { name: "Toang rồi" }));
+  expect(onChat).toHaveBeenCalledWith({ phrase: "doomed" });
+  expect(chatSheet()).toBeInTheDocument();
+  fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.getByRole("button", { name: "💬 Chat" })).toBeEnabled();
 });
 
-test("chat: bong bóng hiện ở người gửi (đối thủ và chính mình)", () => {
+test("chat: cleanChatText làm sạch và giới hạn độ dài", () => {
+  expect(cleanChatText("  a \n\t b   c ")).toBe("a b c");
+  expect(cleanChatText("x\u202Ey\u0007z")).toBe("x y z"); // đảo chiều chữ, ký tự chuông → khoảng trắng
+  expect(cleanChatText("\u202E\u0007")).toBe("");
+  expect(cleanChatText("a".repeat(100))).toHaveLength(CHAT_MAX_LENGTH);
+  expect(cleanChatText("👨‍👩‍👧")).toBe("👨‍👩‍👧"); // emoji ghép không bị vỡ
+});
+
+test("chat: bong bóng hiện ở người gửi (đối thủ và chính mình), cả câu có sẵn lẫn chữ tự do", () => {
   render(
     <GameTable
       game={live(view())}
-      seats={seats}
-      canAct
-      error={null}
-      onPlay={vi.fn()}
-      onPass={vi.fn()}
-      chats={{ 1: { phrase: "think", key: 1 }, 0: { phrase: "doomed", key: 2 } }}
+      {...chatProps}
+      chats={{ 1: { text: "Cho mình nghĩ tí", key: 1 }, 0: { text: "Ơ a có đánh nhầm không?", key: 2 } }}
     />,
   );
   expect(screen.getByText("Cho mình nghĩ tí")).toHaveClass("chat-bubble");
-  expect(screen.getByText("Toang rồi")).toHaveClass("chat-bubble");
+  expect(screen.getByText("Ơ a có đánh nhầm không?")).toHaveClass("chat-bubble");
 });
 
 function stubMatchMedia(matches: boolean) {
@@ -278,10 +312,10 @@ test("chat: bong bóng đặt đúng hướng đuôi theo vị trí người g�
       onPlay={vi.fn()}
       onPass={vi.fn()}
       chats={{
-        0: { phrase: "duty", key: 1 },
-        1: { phrase: "hurry", key: 2 },
-        2: { phrase: "doomed", key: 3 },
-        3: { phrase: "think", key: 4 },
+        0: { text: "Trách nhiệm lên !", key: 1 },
+        1: { text: "Lẹ lên cha", key: 2 },
+        2: { text: "Toang rồi", key: 3 },
+        3: { text: "Cho mình nghĩ tí", key: 4 },
       }}
     />,
   );
@@ -292,4 +326,129 @@ test("chat: bong bóng đặt đúng hướng đuôi theo vị trí người g�
   expect(tail("Toang rồi")).toContain("tail-side"); // ghế ở trên: bên phải avatar, đuôi chỉ sang trái
   expect(tail("Cho mình nghĩ tí")).toContain("tail-right"); // ghế bên phải
   expect(container.querySelector(".opponent.pos-top .chat-bubble")).not.toBeNull();
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+// Bài trên tay (đã xếp theo số): 3♣, 4♠, 10♦, 2♥. jsdom không có layout nên gán tọa độ cho từng lá:
+// lá thứ i rộng 56px, đè lên nhau mỗi lá cách 20px.
+function stubCardRects(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>("[data-card-idx]").forEach((el) => {
+    const i = Number(el.dataset.cardIdx);
+    el.getBoundingClientRect = () =>
+      ({ left: i * 20, right: i * 20 + 56, top: 100, bottom: 180, width: 56, height: 80, x: i * 20, y: 100 }) as DOMRect;
+  });
+}
+const handLabels = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll<HTMLElement>("[data-card-idx]")).map((el) => el.textContent);
+
+const baseProps = { seats, canAct: true, error: null, onPlay: vi.fn(), onPass: vi.fn() };
+
+test("moveCard và insertionIndex", () => {
+  expect(moveCard([1, 4, 30, 51], 0, 3)).toEqual([4, 30, 51, 1]);
+  expect(moveCard([1, 4, 30, 51], 3, 0)).toEqual([51, 1, 4, 30]);
+  expect(moveCard([1, 4, 30, 51], 1, 1)).toEqual([1, 4, 30, 51]);
+  expect(moveCard([1, 4, 30, 51], 9, 0)).toEqual([1, 4, 30, 51]); // vị trí không có thật: giữ nguyên
+  expect(insertionIndex([28, 48, 68, 88], 0, 200)).toBe(3); // thả sau cùng
+  expect(insertionIndex([28, 48, 68, 88], 3, 10)).toBe(0); // thả đầu tiên
+  expect(insertionIndex([28, 48, 68, 88], 1, 60)).toBe(1); // thả giữa lá 0 và 2
+});
+
+test("kéo thả một lá sang vị trí khác để tự xếp bài; không làm lá đó bị chọn", () => {
+  const { container } = render(<GameTable game={live(view())} {...baseProps} />);
+  stubCardRects(container);
+  expect(handLabels(container)).toEqual(["3♣", "4♠", "10♦", "2♥"]);
+  const first = screen.getByRole("button", { name: "3♣" });
+  fireEvent.pointerDown(first, { pointerType: "mouse", button: 0, buttons: 1, clientX: 28, clientY: 140 });
+  fireEvent.pointerMove(first, { pointerType: "mouse", buttons: 1, clientX: 200, clientY: 140 });
+  expect(document.querySelector(".drag-ghost")).not.toBeNull(); // đang cầm lá (vẽ qua portal)
+  fireEvent.pointerUp(first, { pointerType: "mouse" });
+  expect(document.querySelector(".drag-ghost")).toBeNull();
+  expect(handLabels(container)).toEqual(["4♠", "10♦", "2♥", "3♣"]);
+  expect(screen.queryAllByRole("button", { pressed: true })).toHaveLength(0);
+});
+
+test("kéo nhẹ (dưới 6px) vẫn chỉ là một cú bấm để chọn lá", () => {
+  const { container } = render(<GameTable game={live(view())} {...baseProps} />);
+  stubCardRects(container);
+  const first = screen.getByRole("button", { name: "3♣" });
+  fireEvent.pointerDown(first, { pointerType: "mouse", button: 0, buttons: 1, clientX: 28, clientY: 140 });
+  fireEvent.pointerMove(first, { pointerType: "mouse", buttons: 1, clientX: 30, clientY: 141 });
+  fireEvent.pointerUp(first, { pointerType: "mouse" });
+  fireEvent.click(first);
+  expect(handLabels(container)).toEqual(["3♣", "4♠", "10♦", "2♥"]);
+  expect(first).toHaveAttribute("aria-pressed", "true");
+});
+
+test("bấm 'Xếp theo ...' sau khi tự xếp thì quay về tự xếp", () => {
+  const { container } = render(<GameTable game={live(view())} {...baseProps} />);
+  stubCardRects(container);
+  const first = screen.getByRole("button", { name: "3♣" });
+  fireEvent.pointerDown(first, { pointerType: "mouse", button: 0, buttons: 1, clientX: 28, clientY: 140 });
+  fireEvent.pointerMove(first, { pointerType: "mouse", buttons: 1, clientX: 200, clientY: 140 });
+  fireEvent.pointerUp(first, { pointerType: "mouse" });
+  expect(handLabels(container)).toEqual(["4♠", "10♦", "2♥", "3♣"]);
+  fireEvent.click(screen.getByRole("button", { name: "Xếp theo chất" }));
+  expect(handLabels(container)).toEqual(["4♠", "3♣", "10♦", "2♥"]); // ♠ ♣ ♦ ♥
+});
+
+test("quét ngang trên vùng trống phía trên hàng bài để chọn cả dải, rồi đánh cùng lúc", () => {
+  const onPlay = vi.fn();
+  const { container } = render(<GameTable game={live(view())} {...baseProps} onPlay={onPlay} />);
+  stubCardRects(container);
+  const hand = container.querySelector<HTMLElement>(".my-hand")!;
+  fireEvent.pointerDown(hand, { pointerType: "mouse", button: 0, buttons: 1, clientX: 10, clientY: 90 });
+  fireEvent.pointerMove(hand, { pointerType: "mouse", buttons: 1, clientX: 50, clientY: 90 });
+  fireEvent.pointerUp(hand, { pointerType: "mouse" });
+  fireEvent.click(screen.getByRole("button", { name: "Đánh (3)" }));
+  expect(onPlay).toHaveBeenCalledWith(expect.arrayContaining([1, 4, 30]));
+});
+
+test("điện thoại: nút Thông tin mở popup, đóng bằng X, bấm ra ngoài hoặc Esc", () => {
+  stubMatchMedia(true);
+  render(<GameTable game={live(view())} {...baseProps} info={<p>Bảng điểm phiên</p>} onLeave={vi.fn()} />);
+  const open = () => fireEvent.click(screen.getByRole("button", { name: /Thông tin/ }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  open();
+  expect(screen.getByRole("dialog", { name: "Thông tin" })).toBeInTheDocument();
+  expect(screen.getByText("Bảng điểm phiên")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Đóng" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  open();
+  fireEvent.click(screen.getByRole("presentation")); // bấm ra ngoài
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  open();
+  fireEvent.click(screen.getByText("Bảng điểm phiên")); // bấm trong popup thì không đóng
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("điện thoại: nút Rời phòng đỏ hiện popup xác nhận; chỉ rời khi xác nhận", () => {
+  stubMatchMedia(true);
+  const onLeave = vi.fn();
+  render(<GameTable game={live(view())} {...baseProps} onLeave={onLeave} />);
+  expect(screen.getByRole("button", { name: "Rời phòng" })).toHaveClass("danger");
+
+  fireEvent.click(screen.getByRole("button", { name: "Rời phòng" }));
+  let dialog = screen.getByRole("dialog", { name: "Rời phòng?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Ở lại" }));
+  expect(onLeave).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Rời phòng" }));
+  dialog = screen.getByRole("dialog", { name: "Rời phòng?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Rời phòng" }));
+  expect(onLeave).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("máy tính: không có nút Thông tin / Rời phòng trong bàn (vẫn dùng bảng điểm và nút bên ngoài)", () => {
+  stubMatchMedia(false);
+  render(<GameTable game={live(view())} {...baseProps} info={<p>Bảng điểm phiên</p>} onLeave={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: /Thông tin/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Rời phòng" })).not.toBeInTheDocument();
 });

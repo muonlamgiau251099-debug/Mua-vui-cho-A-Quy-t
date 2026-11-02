@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoomState } from "../api/guest";
 import { errorLabel } from "../game/cards";
-import { CHAT_SHOW_MS, chatText, type ChatBubbles } from "../game/chat";
+import { CHAT_SHOW_MS, chatText, cleanChatText, type ChatBubbles } from "../game/chat";
 import { newRequestId } from "../lib/id";
 import type { GameResult, LiveGame } from "../game/types";
 
@@ -111,11 +111,13 @@ export function useRoomSocket(roomId: string | null, token: string | null) {
           break;
         case "chat.message": {
           const seat = p.seat;
-          const phrase = p.phrase;
           if (typeof seat !== "number" || !Number.isInteger(seat) || seat < 0 || seat > 3) break;
-          if (typeof phrase !== "string" || chatText(phrase) === null) break;
+          // Câu có sẵn (mã → chữ) hoặc chữ tự do. Chữ tự do luôn được làm sạch lại và chỉ hiển thị như văn bản thuần.
+          const text =
+            typeof p.phrase === "string" ? chatText(p.phrase) : typeof p.text === "string" ? cleanChatText(p.text) : null;
+          if (!text) break;
           const key = ++chatKey;
-          setChats((prev) => ({ ...prev, [seat]: { phrase, key } }));
+          setChats((prev) => ({ ...prev, [seat]: { text, key } }));
           chatTimers.add(
             setTimeout(
               () =>

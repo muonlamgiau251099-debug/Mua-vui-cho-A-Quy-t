@@ -1,20 +1,49 @@
-"""Chat nhanh bằng câu có sẵn trong phòng (message `chat.send` → broadcast `chat.message`).
+"""Chat trong phòng: câu có sẵn hoặc chữ tự do ngắn (`chat.send` → broadcast `chat.message`).
 
-- Không nhận chữ tự do: client chỉ gửi mã câu (phrase id) nằm trong danh sách cho phép.
+- Câu có sẵn: client chỉ gửi mã (phrase id) nằm trong danh sách cho phép.
+- Chữ tự do: server tự làm sạch (bỏ ký tự điều khiển, gộp khoảng trắng) và giới hạn độ dài; không tin client.
+  Chat không kiểm duyệt từ ngữ; client hiển thị như văn bản thuần (không HTML).
 - Giới hạn tần suất theo (phòng, guest) ở phía server; ngắt kết nối rồi vào lại cũng không reset được.
-- Tin chat không lưu DB, không ảnh hưởng ván (không đi qua state machine hay sổ điểm).
+- Tin chat không lưu DB, không ghi log nội dung, không ảnh hưởng ván (không đi qua state machine hay sổ điểm).
 """
 
 import time
+import unicodedata
 from collections import OrderedDict
 from collections.abc import Callable, Hashable
 
-# Văn bản hiển thị nằm ở client (frontend/src/game/chat.ts); server chỉ biết mã.
+# Văn bản hiển thị của câu có sẵn nằm ở client (frontend/src/game/chat.ts); server chỉ biết mã.
 CHAT_PHRASES: frozenset[str] = frozenset(
-    {"duty", "hurry", "doomed", "redeal", "top1", "clan", "spare", "think"}
+    {
+        "duty",
+        "hurry",
+        "doomed",
+        "redeal",
+        "top1",
+        "clan",
+        "spare",
+        "think",
+        "spade3",
+        "mistake",
+        "undo",
+    }
 )
+CHAT_MAX_LENGTH = 60  # ký tự (code point) của chữ tự do
 CHAT_COOLDOWN_SECONDS = 10.0
 _MAX_TRACKED = 2000
+_ZWJ = chr(0x200D)  # zero-width joiner: giữ lại để emoji ghép không bị vỡ
+
+
+def normalize_chat_text(raw: object) -> str | None:
+    """Làm sạch chữ tự do; trả None nếu không phải chuỗi, rỗng sau khi làm sạch, hoặc quá dài."""
+    if not isinstance(raw, str):
+        return None
+    # Ký tự điều khiển / định dạng / riêng tư (nhóm C*, gồm xuống dòng, đảo chiều chữ…) → khoảng trắng.
+    spaced = "".join(" " if unicodedata.category(ch).startswith("C") and ch != _ZWJ else ch for ch in raw)
+    text = " ".join(spaced.split())
+    if not text or len(text) > CHAT_MAX_LENGTH:
+        return None
+    return text
 
 
 class ChatCooldown:

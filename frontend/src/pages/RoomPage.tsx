@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError, errorMessage } from "../api/client";
 import { guestApi, roomApi, tokenStore } from "../api/guest";
+import { COMPACT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import { useRoomSocket } from "../realtime/useRoomSocket";
 import { GameResultPanel } from "../game/GameResultPanel";
 import { GameTable } from "../game/GameTable";
@@ -17,6 +18,7 @@ export function RoomPage() {
   const me = useQuery({ queryKey: ["guest", "me"], queryFn: guestApi.me });
   const preview = useQuery({ queryKey: ["room", code], queryFn: () => roomApi.byCode(code), retry: false });
   const [joinError, setJoinError] = useState<string | null>(null);
+  const compact = useMediaQuery(COMPACT_QUERY);
 
   const roomId = preview.data?.roomId ?? null;
   const seatedHere = !!me.data?.currentRoom && me.data.currentRoom.roomId === roomId;
@@ -89,8 +91,11 @@ export function RoomPage() {
   const inviteUrl = `${window.location.origin}/r/${room.code}`;
   const yourSeat = socket.room?.yourSeat ?? me.data.currentRoom?.seatNo ?? null;
 
+  // Điện thoại đang chơi: bàn chiếm trọn màn hình; điểm phiên nằm trong popup "Thông tin", nút "Rời phòng" nằm trên bàn.
+  const tableMode = compact;
+
   return (
-    <main className="app">
+    <main className={`app${tableMode ? " table-mode" : ""}`}>
       {socket.status !== "open" && (
         <div className="banner" role="status">
           {socket.status === "reconnecting" ? "Mất kết nối, đang kết nối lại…" : "Đang kết nối…"}
@@ -101,7 +106,7 @@ export function RoomPage() {
           {socket.notice}
         </div>
       )}
-      <SessionScoreboard session={room.session} yourSeat={yourSeat} />
+      {!tableMode && <SessionScoreboard session={room.session} yourSeat={yourSeat} />}
       {socket.game ? (
         <>
           <GameTable
@@ -111,22 +116,26 @@ export function RoomPage() {
             error={socket.lastError}
             clockOffset={socket.clockOffset}
             chats={socket.chats}
-            onChat={(phrase) => socket.send("chat.send", { phrase })}
+            info={<SessionScoreboard session={room.session} yourSeat={yourSeat} />}
+            onLeave={() => void leaveToLobby(roomApi.leave)}
+            onChat={(msg) => socket.send("chat.send", msg)}
             onPlay={(cards) => socket.send("game.play", { cards })}
             onPass={() => socket.send("game.pass")}
           />
-          <div className="actions">
-            <button
-              type="button"
-              className="danger"
-              onClick={() =>
-                window.confirm("Rời phòng khi đang chơi sẽ bị xử thua (xếp bét). Vẫn rời?") &&
-                void leaveToLobby(roomApi.leave)
-              }
-            >
-              Rời phòng
-            </button>
-          </div>
+          {!tableMode && (
+            <div className="actions">
+              <button
+                type="button"
+                className="danger"
+                onClick={() =>
+                  window.confirm("Rời phòng khi đang chơi sẽ bị xử thua (xếp bét). Vẫn rời?") &&
+                  void leaveToLobby(roomApi.leave)
+                }
+              >
+                Rời phòng
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -136,6 +145,7 @@ export function RoomPage() {
             yourSeat={yourSeat}
             canAct={socket.status === "open"}
             inviteUrl={inviteUrl}
+            info={<SessionScoreboard session={room.session} yourSeat={yourSeat} />}
             onReady={(ready) => socket.send("room.ready", { ready })}
             onLeave={() => void leaveToLobby(roomApi.leave)}
             onClose={() =>

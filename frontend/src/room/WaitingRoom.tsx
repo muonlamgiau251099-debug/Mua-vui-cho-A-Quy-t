@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
 import type { RoomState, SeatState } from "../api/guest";
+import { Modal } from "../game/Modal";
+import { COMPACT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
+import { RulesView } from "../pages/RulesView";
 
 type Props = {
   room: RoomState;
   yourSeat: number | null;
   canAct: boolean;
   inviteUrl: string;
+  info?: ReactNode; // màn hình nhỏ: nội dung popup "Thông tin" (điểm phiên)
   onReady: (ready: boolean) => void;
   onLeave: () => void;
   onClose: () => void;
@@ -88,7 +91,20 @@ function SeatCard({ seat, pos, isOwner, isYou, now }: SeatCardProps) {
   );
 }
 
-export function WaitingRoom({ room, yourSeat, canAct, inviteUrl, onReady, onLeave, onClose, onRestartSession }: Props) {
+export function WaitingRoom({
+  room,
+  yourSeat,
+  canAct,
+  inviteUrl,
+  info,
+  onReady,
+  onLeave,
+  onClose,
+  onRestartSession,
+}: Props) {
+  const compact = useMediaQuery(COMPACT_QUERY);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -109,29 +125,24 @@ export function WaitingRoom({ room, yourSeat, canAct, inviteUrl, onReady, onLeav
   };
 
   return (
-    <section className="waiting-room">
-      <header className="room-head">
-        <div>
-          <h1>Phòng {room.code}</h1>
-          <p className="muted">
-            {occupied}/4 người · {readyCount} sẵn sàng
-            {room.rules && (
-              <>
-                {" "}
-                · <Link to="/rules">Luật v{room.rules.version}</Link>
-              </>
-            )}
-          </p>
-        </div>
-        <div className="invite">
-          <code>{inviteUrl}</code>
-          <button type="button" onClick={copy}>
-            {copied ? "Đã sao chép" : "Sao chép link mời"}
-          </button>
-        </div>
-      </header>
-
+    <section className={`waiting-room${compact ? " compact" : ""}`}>
+      <h1 className="sr-only">Phòng {room.code}</h1>
       <div className="waiting-table">
+        <div className="room-info">
+          <span className="room-count">
+            {occupied}/4 người · {readyCount} sẵn sàng
+          </span>
+          {room.rules && (
+            <button type="button" className="link-btn rules-link" onClick={() => setRulesOpen(true)}>
+              Luật v{room.rules.version}
+            </button>
+          )}
+        </div>
+
+        <button type="button" className="table-btn leave-btn" onClick={onLeave}>
+          Rời phòng
+        </button>
+
         <ol className="seat-ring" aria-label="Các ghế trong phòng">
           {SEAT_POS.map((pos, offset) => {
             // Bạn luôn ngồi phía dưới; ghế kế tiếp bên trái, đối diện ở trên, ghế trước bên phải (giống bàn chơi).
@@ -148,37 +159,67 @@ export function WaitingRoom({ room, yourSeat, canAct, inviteUrl, onReady, onLeav
             );
           })}
         </ol>
-        <div className="table-center" aria-hidden="true">
-          <span className="small">Mã phòng</span>
-          <span className="table-code">{room.code}</span>
-        </div>
-      </div>
 
-      {occupied < 4 && <p className="hint">Cần đủ 4 người. Gửi link mời hoặc mã phòng {room.code} cho bạn bè.</p>}
-
-      <div className="actions">
-        <button
-          type="button"
-          className={me?.ready ? "" : "primary"}
-          disabled={!canAct || !me}
-          onClick={() => onReady(!me?.ready)}
-        >
-          {me?.ready ? "Hủy sẵn sàng" : "Sẵn sàng"}
-        </button>
-        <button type="button" onClick={onLeave}>
-          Rời phòng
-        </button>
-        {isOwner && room.session && onRestartSession && (
-          <button type="button" onClick={onRestartSession}>
-            Bắt đầu phiên mới
+        <div className="table-center">
+          <button
+            type="button"
+            className={`ready-btn${me?.ready ? " is-ready" : ""}`}
+            disabled={!canAct || !me}
+            onClick={() => onReady(!me?.ready)}
+          >
+            {me?.ready ? "Hủy sẵn sàng" : "Sẵn sàng"}
           </button>
-        )}
+          <div className="room-code-row">
+            <span className="small">Mã phòng</span>
+            <span className="table-code">{room.code}</span>
+            <button
+              type="button"
+              className="copy-btn"
+              aria-label="Sao chép link mời"
+              title="Sao chép link mời"
+              onClick={copy}
+            >
+              {copied ? "✓" : "⧉"}
+            </button>
+          </div>
+          {copied && (
+            <span className="copied-note small" role="status">
+              Đã sao chép link mời
+            </span>
+          )}
+          {occupied < 4 && <p className="hint">Cần đủ 4 người — gửi mã hoặc link mời cho bạn bè.</p>}
+        </div>
+
+        <div className="room-corner">
+          {compact && info && (
+            <button type="button" className="table-btn" onClick={() => setInfoOpen(true)}>
+              ⓘ Thông tin
+            </button>
+          )}
+          {isOwner && room.session && onRestartSession && (
+            <button type="button" className="table-btn" onClick={onRestartSession}>
+              Bắt đầu phiên mới
+            </button>
+          )}
+        </div>
+
         {isOwner && (
-          <button type="button" className="danger" onClick={onClose}>
+          <button type="button" className="table-btn close-btn danger" onClick={onClose}>
             Đóng phòng
           </button>
         )}
       </div>
+
+      {infoOpen && (
+        <Modal title="Thông tin" onClose={() => setInfoOpen(false)}>
+          {info}
+        </Modal>
+      )}
+      {rulesOpen && (
+        <Modal title="Luật đang áp dụng" wide onClose={() => setRulesOpen(false)}>
+          <RulesView />
+        </Modal>
+      )}
     </section>
   );
 }

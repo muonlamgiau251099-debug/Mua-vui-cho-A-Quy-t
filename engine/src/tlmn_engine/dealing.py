@@ -151,7 +151,9 @@ def start_game(
 
 
 def next_opening(previous_end_type: EndType | None, previous_winner: int | None) -> OpeningMode:
-    """3♣ đi đầu ở ván đầu phiên, sau tới trắng (ID 60), sau ván bị hủy (G8); còn lại người nhất đi đầu."""
-    if previous_end_type in (None, EndType.INSTANT_WIN, EndType.CANCELLED) or previous_winner is None:
+    """3♣ đi đầu ở ván đầu phiên, sau tới trắng (ID 60), sau đút mù 3♠ (yêu cầu mới, ghi đè D10) và sau
+    ván bị hủy (G8); còn lại người nhất đi đầu."""
+    special_end = (None, EndType.INSTANT_WIN, EndType.BLIND_THREE_SPADES, EndType.CANCELLED)
+    if previous_end_type in special_end or previous_winner is None:
         return OpeningMode.THREE_CLUBS
     return OpeningMode.WINNER_LEADS

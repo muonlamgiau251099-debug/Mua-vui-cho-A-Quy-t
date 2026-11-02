@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 from fastapi import WebSocket
 
 from app.errors import AppError
-from app.realtime.chat import CHAT_PHRASES, ChatCooldown
+from app.realtime.chat import CHAT_MAX_LENGTH, CHAT_PHRASES, ChatCooldown, normalize_chat_text
 from tlmn_engine.beats import MoveRejected
 from tlmn_engine.cards import full_deck
 from tlmn_engine.codec import action_from_json, action_to_json, state_from_json, state_hash, state_to_json
@@ -624,12 +624,23 @@ class MemoryStore:
                 await self.after_action(room, events)
                 return None
             elif kind == "chat.send":
-                phrase = payload.get("phrase")
-                if not isinstance(phrase, str) or phrase not in CHAT_PHRASES:
-                    raise AppError(422, "PAYLOAD_INVALID", "Câu chat không hợp lệ")
+                if ("phrase" in payload) == ("text" in payload):
+                    raise AppError(422, "PAYLOAD_INVALID", "Chat phải gửi phrase hoặc text")
+                if "phrase" in payload:
+                    phrase = payload["phrase"]
+                    if not isinstance(phrase, str) or phrase not in CHAT_PHRASES:
+                        raise AppError(422, "PAYLOAD_INVALID", "Câu chat không hợp lệ")
+                    chat = {"phrase": phrase}
+                else:
+                    text = normalize_chat_text(payload["text"])
+                    if text is None:
+                        raise AppError(
+                            422, "PAYLOAD_INVALID", f"Tin nhắn phải từ 1 đến {CHAT_MAX_LENGTH} ký tự"
+                        )
+                    chat = {"text": text}
                 if room.chat.check(guest.id) > 0:
                     raise AppError(429, "CHAT_COOLDOWN", "Chờ 10 giây giữa các câu chat")
-                await self.broadcast(room, "chat.message", dict(seat=seat, phrase=phrase))
+                await self.broadcast(room, "chat.message", dict(seat=seat, **chat))
                 response = envelope("ack", {"type": kind}, room.id, request_id=req)
             else:
                 raise AppError(422, "UNKNOWN_TYPE", "Không hỗ trợ message này")

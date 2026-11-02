@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ApiError, errorMessage } from "../api/client";
@@ -6,9 +6,19 @@ import { guestApi, historyApi, roomApi } from "../api/guest";
 
 export function LobbyPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const me = useQuery({ queryKey: ["guest", "me"], queryFn: guestApi.me });
+  const [editing, setEditing] = useState(false);
+  const [newName, setNewName] = useState("");
   const [code, setCode] = useState("");
   const sessions = useQuery({ queryKey: ["guest", "sessions"], queryFn: historyApi.mySessions, enabled: !!me.data });
+  const rename = useMutation({
+    mutationFn: () => guestApi.rename(newName),
+    onSuccess: (profile) => {
+      queryClient.setQueryData(["guest", "me"], profile); // tên mới hiện ngay, token giữ nguyên
+      setEditing(false);
+    },
+  });
   const create = useMutation({
     mutationFn: roomApi.create,
     onSuccess: (room) => navigate(`/r/${room.code}`),
@@ -33,9 +43,60 @@ export function LobbyPage() {
           ← Trang chủ
         </Link>
         <h1>Sảnh chờ</h1>
-        <p className="muted">
-          Bạn: <strong className="accent-text">{me.data.nickname}</strong>
-        </p>
+        {editing ? (
+          <form
+            className="rename-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              rename.mutate();
+            }}
+          >
+            <label htmlFor="new-nickname" className="sr-only">
+              Tên hiển thị mới
+            </label>
+            <input
+              id="new-nickname"
+              value={newName}
+              maxLength={20}
+              autoComplete="nickname"
+              placeholder="Tên mới"
+              onChange={(e) => setNewName(e.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className="primary"
+              disabled={rename.isPending || newName.trim().length < 2 || newName.trim() === me.data.nickname}
+            >
+              {rename.isPending ? "Đang lưu…" : "Lưu"}
+            </button>
+            <button type="button" onClick={() => setEditing(false)}>
+              Hủy
+            </button>
+          </form>
+        ) : (
+          <p className="muted">
+            Bạn: <strong className="accent-text">{me.data.nickname}</strong>{" "}
+            {!me.data.currentRoom && (
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  rename.reset();
+                  setNewName(me.data!.nickname);
+                  setEditing(true);
+                }}
+              >
+                ✎ Đổi tên
+              </button>
+            )}
+          </p>
+        )}
+        {rename.error && (
+          <p role="alert" className="error">
+            {errorMessage(rename.error)}
+          </p>
+        )}
       </header>
 
       {me.data.currentRoom ? (

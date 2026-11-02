@@ -15,3 +15,6 @@ export function useMediaQuery(query: string): boolean {
   }, [query]);
   return matches;
 }
+
+/** Điện thoại: màn hẹp (dọc) hoặc màn thấp (xoay ngang). Bàn chơi chuyển sang bố cục gọn trong một bàn. */
+export const COMPACT_QUERY = "(max-width: 600px), (max-height: 500px)";

@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from starlette.websockets import WebSocketDisconnect
 
 from app.models import Game, GameEvent
@@ -260,3 +260,23 @@ def test_no_hidden_card_ever_reaches_another_player_during_a_whole_game(table: T
         assert set(message["payload"]["state"]["yourHand"]) <= set(HANDS[1])
         checked += 1
     assert checked > 20
+
+
+def test_after_blind_three_spades_next_game_opens_with_three_clubs_not_winner(table: Table) -> None:
+    """Sau đút mù 3♠ (cũng như tới trắng / ván hủy), người giữ 3♣ đi đầu — không phải người nhất."""
+    login = table.tc.post("/api/admin/login", json={"username": ADMIN_USER, "password": ADMIN_PASSWORD})
+    game_id = table.games.live(uuid.UUID(table.room_id)).game_id
+    table.tc.post(f"/api/admin/games/{game_id}/cancel", headers={"X-CSRF-Token": login.json()["csrfToken"]})
+    recv_until(table.sockets[1], of_type("game.cancelled"))
+
+    async def pretend_blind_win_by_seat_2() -> None:  # dựng lại kết thúc "đút mù, ghế 2 về nhất"
+        async with table.app.state.sessionmaker() as s:
+            await s.execute(update(Game).values(end_type="BLIND_THREE_SPADES", winner_seat=2))
+            await s.commit()
+
+    table.run(pretend_blind_win_by_seat_2)
+    for seat in range(4):
+        table.send(seat, "room.ready", {"ready": True}, 0)
+    state = recv_until(table.sockets[0], of_type("game.started"))["payload"]["state"]
+    assert THREE_CLUBS in HANDS[0]
+    assert (state["openingMode"], state["current"]) == ("THREE_CLUBS", 0)  # ghế 0 giữ 3♣, không phải ghế 2

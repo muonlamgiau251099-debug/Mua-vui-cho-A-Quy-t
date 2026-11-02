@@ -267,3 +267,78 @@ async def test_replay_eviction_preserves_next_game_opening():
     assert room.live["state"].phase == Phase.PLAYING
     assert room.live["state"].opening_mode.value == "WINNER_LEADS"
     assert room.live["state"].current == winner
+
+
+def test_free_chat_validation_broadcast_and_shared_cooldown():
+    with TestClient(create_app()) as client, ExitStack() as stack:
+        players, room = setup_players(client)
+        sockets = []
+        for player, _ in players[:2]:
+            ws = stack.enter_context(client.websocket_connect(f"/ws/rooms/{room['roomId']}"))
+            ws.send_json(message("auth", {"token": player["token"]}))
+            receive(ws, "ack")
+            sockets.append(ws)
+        bad_payloads = [
+            {},
+            {"text": ""},
+            {"text": "  \n\t"},
+            {"text": "\u202e\u0007"},
+            {"text": "a" * 61},
+            {"text": 123},
+            {"text": "xin chào", "phrase": "think"},
+        ]
+        for payload in bad_payloads:
+            sockets[0].send_json(message("chat.send", payload))
+            assert receive(sockets[0], "error")["payload"]["code"] == "PAYLOAD_INVALID"
+        # Invalid messages must not consume the chat cooldown. Only cleaned plain text is broadcast.
+        sockets[0].send_json(message("chat.send", {"text": "  Cho\te đánh\nlại  \u202e\u0007 "}))
+        for ws in sockets:
+            assert receive(ws, "chat.message")["payload"] == {"seat": 0, "text": "Cho e đánh lại"}
+        sockets[0].send_json(message("chat.send", {"phrase": "undo"}))
+        assert receive(sockets[0], "error")["payload"]["code"] == "CHAT_COOLDOWN"
+
+
+@pytest.mark.parametrize("phrase", ["spade3", "mistake", "undo"])
+def test_new_preset_chat_in_ram_runtime(phrase):
+    with TestClient(create_app()) as client:
+        players, room = setup_players(client)
+        with client.websocket_connect(f"/ws/rooms/{room['roomId']}") as ws:
+            ws.send_json(message("auth", {"token": players[0][0]["token"]}))
+            receive(ws, "ack")
+            ws.send_json(message("chat.send", {"phrase": phrase}))
+            assert receive(ws, "chat.message")["payload"] == {"seat": 0, "phrase": phrase}
+
+
+def test_chat_normalization_retains_emoji_and_enforces_codepoint_limit():
+    from app.realtime.chat import normalize_chat_text
+
+    assert normalize_chat_text("hi 👨‍👩‍👧") == "hi 👨‍👩‍👧"
+    assert normalize_chat_text("😃" * 60) == "😃" * 60
+    assert normalize_chat_text("😃" * 61) is None
+    assert normalize_chat_text(None) is None
+
+
+@pytest.mark.asyncio
+async def test_ram_dealing_after_blind_three_spades_opens_with_three_clubs():
+    import random
+
+    store = MemoryStore()
+    guests = [store.create_guest(f"Blind {i}")[0] for i in range(4)]
+    room = store.create_room(guests[0])
+    for g in guests[1:]:
+        store.join(room, g, None)
+    store.new_session(room)
+    session = store.sessions[room.session_id]
+    deck = list(range(52))
+    random.Random(42).shuffle(deck)
+    store.deck_source = lambda: deck
+    from tlmn_engine.dealing import deal
+
+    holder = next(i for i, hand in enumerate(deal(deck)) if 1 in hand)
+    session["last_end"] = "BLIND_THREE_SPADES"
+    session["last_winner"] = (holder + 1) % 4
+    for seat in room.seats:
+        seat.ready = seat.connected = True
+    await store.start(room)
+    assert room.live["state"].opening_mode.value == "THREE_CLUBS"
+    assert room.live["state"].current == holder

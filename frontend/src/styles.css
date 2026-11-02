@@ -460,14 +460,17 @@ textarea:focus-visible {
 .waiting-table {
   display: grid;
   grid-template-columns: minmax(96px, 1fr) minmax(0, 1.6fr) minmax(96px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    ". top ."
+    "info top leave"
     "left center right"
-    ". me .";
-  gap: 14px 8px;
+    "corner me close";
+  gap: 10px 8px;
   align-items: center;
+  box-sizing: border-box;
+  min-height: 520px;
   margin: 16px 0;
-  padding: 18px 12px;
+  padding: 14px 12px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: radial-gradient(ellipse 90% 80% at 50% 50%, var(--felt-1) 0%, var(--felt-2) 55%, var(--felt-3) 100%);
@@ -558,8 +561,9 @@ textarea:focus-visible {
   grid-area: center;
   display: grid;
   justify-items: center;
-  gap: 2px;
+  gap: 4px;
   color: var(--muted);
+  text-align: center;
 }
 
 .table-code {
@@ -570,13 +574,202 @@ textarea:focus-visible {
   letter-spacing: 0.18em;
 }
 
-.waiting-room .actions button {
-  min-height: 44px;
+/* Nút Sẵn sàng: to, nằm giữa bàn, nhấp nháy nhẹ bằng vòng sáng lan ra khi chưa sẵn sàng. */
+.ready-btn {
+  position: relative;
+  width: min(210px, 100%);
+  min-height: 62px;
+  padding: 12px 20px;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #93aff0, #5f82d6);
+  color: var(--on-accent);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 6px 0 #3d5ba8,
+    0 12px 24px rgb(0 0 0 / 35%);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.ready-btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 3px solid #93aff0;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: ready-ring 1.8s ease-out infinite;
+}
+
+.ready-btn.is-ready {
+  background: linear-gradient(180deg, #7fdcae, #3fae80);
+  box-shadow:
+    0 6px 0 #2a7c5a,
+    0 12px 24px rgb(0 0 0 / 35%);
+}
+
+.ready-btn.is-ready::after,
+.ready-btn:disabled::after {
+  display: none;
+}
+
+@media (hover: hover) {
+  .ready-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+}
+
+.ready-btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 #3d5ba8,
+    0 6px 14px rgb(0 0 0 / 35%);
+}
+
+.ready-btn.is-ready:active:not(:disabled) {
+  box-shadow:
+    0 2px 0 #2a7c5a,
+    0 6px 14px rgb(0 0 0 / 35%);
+}
+
+@keyframes ready-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.22, 1.5);
+  }
+}
+
+.room-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.copy-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 30%);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.copied-note {
+  color: #9be3bc;
+}
+
+.table-center .hint {
+  margin: 0;
+  max-width: 260px;
+}
+
+/* Thông tin phòng, nút Rời phòng / Đóng phòng nằm gọn trong bàn. */
+.room-info {
+  grid-area: info;
+  display: grid;
+  gap: 2px;
+  justify-self: start;
+  align-self: start;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.room-count {
+  font-weight: 600;
+}
+
+.waiting-table .leave-btn {
+  grid-area: leave;
+  justify-self: end;
+  align-self: start;
+}
+
+.waiting-table .close-btn {
+  grid-area: close;
+  justify-self: end;
+  align-self: end;
+  border-color: #e06c75;
+  background: #c8434d;
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .waiting-table .close-btn:hover:not(:disabled) {
+    background: #d9525c;
+  }
+}
+
+.room-corner {
+  grid-area: corner;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  align-self: end;
+}
+
+/* Điện thoại: bàn phòng chờ chiếm trọn màn hình. */
+.waiting-room.compact .waiting-table {
+  height: calc(100dvh - 12px);
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.waiting-room.compact .seat-title {
+  font-size: 0.7rem;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .waiting-room.compact .waiting-table {
+    padding: 8px 10px;
+    grid-template-columns: minmax(96px, 1fr) minmax(0, 2fr) minmax(96px, 1fr);
+  }
+
+  .waiting-room.compact .seat-card .avatar {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0;
+    font-size: 1rem;
+  }
+
+  .waiting-room.compact .seat-card {
+    padding: 2px;
+  }
+
+  .waiting-room.compact .ready-btn {
+    width: min(170px, 100%);
+    min-height: 50px;
+    padding: 8px 28px;
+    font-size: 1.15rem;
+  }
+
+  .waiting-room.compact .room-code-row {
+    margin-top: 10px;
+  }
+
+  .waiting-room.compact .table-center .hint {
+    display: none;
+  }
 }
 
 @media (width <= 600px) {
   .waiting-table {
-    grid-template-columns: minmax(72px, 1fr) minmax(0, 1.3fr) minmax(72px, 1fr);
+    grid-template-columns: minmax(72px, 86px) minmax(0, 1fr) minmax(72px, 86px);
     padding: 12px 6px;
   }
 
@@ -686,7 +879,7 @@ textarea:focus-visible {
 }
 
 .opponent.turn .opponent-name {
-  color: var(--accent);
+  color: #b5c8ff; /* accent sáng hơn: chữ xanh dương đậm khó đọc trên nền nỉ xanh lá */
 }
 
 .opponent.turn .avatar::after {
@@ -868,10 +1061,6 @@ textarea:focus-visible {
   gap: 0;
 }
 
-.game-table .trick-cards .card + .card {
-  margin-left: -14px;
-}
-
 .card {
   min-width: 46px;
   min-height: 64px;
@@ -909,7 +1098,11 @@ button.card.selected {
 }
 
 .turn-bar.mine {
-  color: var(--accent);
+  justify-self: center;
+  padding: 2px 14px;
+  border-radius: 999px;
+  background: rgb(102 137 216 / 55%);
+  color: #fff;
 }
 
 .game-actions {
@@ -957,6 +1150,7 @@ button.card.selected {
   --cw: clamp(40px, 11vw, 56px); /* bề rộng 1 lá; 13 lá xòe luôn vừa khung nên không cần cuộn */
 
   grid-area: hand;
+  container-type: inline-size; /* để tính độ giãn của các lá theo bề rộng khung (đơn vị cqw) */
   flex-wrap: nowrap;
   gap: 0;
   padding: 24px 6px 6px;
@@ -984,7 +1178,13 @@ button.card.selected {
 }
 
 .game-table .my-hand .card + .card {
-  margin-left: calc(var(--cw) * -0.5);
+  /* Giãn đều theo bề rộng khung bài: lá thứ 2..13 cách nhau (khung - 1 lá) / 12, tối đa chồng 70%, tối thiểu hở 8%. */
+  margin-left: calc(var(--cw) * -0.4);
+  margin-left: clamp(
+    calc(var(--cw) * -0.7),
+    calc((100cqw - var(--cw)) / 12 - var(--cw)),
+    calc(var(--cw) * 0.08)
+  );
 }
 
 /* Vùng bấm kéo dài lên/xuống bằng đúng độ nhô của lá, để lá nhô lên không làm con trỏ "rớt" khỏi lá và nháy qua lại. */
@@ -1446,11 +1646,6 @@ a:focus-visible {
   --rb-glow: rgb(170 190 230 / 50%);
 }
 
-.rank-3 {
-  --rb-fill: #ffb27a;
-  --rb-stroke: #7a3510;
-  --rb-glow: rgb(255 150 90 / 45%);
-}
 
 .rank-4 {
   --rb-fill: #c4c8d0;
@@ -1627,30 +1822,6 @@ a:focus-visible {
   white-space: nowrap;
 }
 
-.chat-menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
-  z-index: 8;
-  display: grid;
-  gap: 4px;
-  width: 200px;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-md);
-  animation: dialog-in 140ms var(--ease);
-}
-
-.chat-menu button {
-  min-height: 38px;
-  padding: 6px 12px;
-  text-align: left;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
-}
-
 /* Bong bóng pixel: viền đen 3px bằng box-shadow (góc tự khuyết như pixel art), đáy tím nhạt, đuôi nhọn bậc thang. */
 .chat-bubble {
   position: absolute;
@@ -1766,5 +1937,544 @@ a:focus-visible {
 
   100% {
     opacity: 0;
+  }
+}
+
+/* --- Kéo thả xếp bài --- */
+.game-table .my-hand button.card {
+  cursor: grab;
+}
+
+.game-table .my-hand button.card.dragging {
+  opacity: 0.3;
+  transform: none;
+}
+
+/* Lá đang cầm theo con trỏ. */
+.card.drag-ghost {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 5px 4px;
+  place-items: start;
+  pointer-events: none;
+  transform: translate(-50%, -60%) rotate(-4deg);
+  box-shadow: 0 10px 20px rgb(0 0 0 / 45%);
+  transition: none;
+}
+
+/* --- Popup --- */
+.dialog-backdrop {
+  z-index: 40;
+}
+
+.dialog.modal {
+  width: min(420px, 100%);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal-close {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* --- Điện thoại (dọc / xoay ngang): bàn chơi nằm gọn trong một màn hình --- */
+.app.table-mode {
+  max-width: none;
+  padding: 6px;
+}
+
+.table-mode .banner,
+.table-mode .message {
+  position: fixed;
+  top: 6px;
+  right: 8px;
+  left: 8px;
+  z-index: 45;
+  margin: 0;
+}
+
+.game-table.compact {
+  box-sizing: border-box; /* padding + viền nằm trong chiều cao, không làm bàn tràn khỏi màn hình */
+  height: calc(100dvh - 12px);
+  min-height: 0;
+  padding: 8px 8px 6px;
+  gap: 4px 6px;
+  overflow: hidden;
+  grid-template-columns: minmax(64px, 1fr) minmax(0, 2.4fr) minmax(64px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas:
+    "info top leave"
+    "left trick right"
+    "turn turn turn"
+    "actions actions actions"
+    "hand hand hand"
+    "mine mine mine";
+}
+
+.table-btn {
+  z-index: 3;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 35%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.game-table .info-btn {
+  grid-area: info;
+  justify-self: start;
+  align-self: start;
+}
+
+.game-table .leave-btn {
+  grid-area: leave;
+  justify-self: end;
+  align-self: start;
+  border-color: #e06c75;
+  background: #c8434d;
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .game-table .leave-btn:hover:not(:disabled) {
+    background: #d9525c;
+  }
+}
+
+.game-table.compact .avatar {
+  width: 38px;
+  height: 38px;
+  border-width: 2px;
+  font-size: 1.05em;
+}
+
+.game-table.compact .my-seat .avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.game-table.compact .opponent {
+  gap: 1px;
+  padding: 2px;
+}
+
+.game-table.compact .opponent.pos-left,
+.game-table.compact .opponent.pos-right {
+  align-self: center;
+}
+
+.game-table.compact .opponent-name {
+  font-size: 0.78em;
+}
+
+.game-table.compact .opponent .muted {
+  min-height: 0;
+  font-size: 0.68em;
+}
+
+.game-table.compact .last-card {
+  padding: 1px 8px;
+  font-size: 0.68em;
+}
+
+.game-table.compact .trick {
+  min-height: 0;
+  gap: 4px;
+  padding: 2px;
+}
+
+.game-table.compact .turn-bar {
+  min-height: 0;
+  font-size: 0.85rem;
+}
+
+.game-table.compact .game-actions {
+  gap: 6px;
+}
+
+.game-table.compact .game-actions button {
+  min-height: 36px;
+  padding: 4px 14px;
+  font-size: 0.85rem;
+}
+
+.game-table.compact .my-hand {
+  --cw: clamp(36px, 10.5vw, 50px);
+
+  padding: 20px 4px 2px;
+}
+
+.game-table.compact .my-seat {
+  gap: 0;
+}
+
+.game-table.compact .my-name {
+  font-size: 0.75em;
+}
+
+/* Diễn biến: góc trái dưới, nền đen trong suốt, không chặn thao tác. */
+.game-table.compact .game-log {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  z-index: 3;
+  grid-area: auto;
+  max-width: 36%;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 45%);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  list-style: none;
+  pointer-events: none;
+}
+
+.game-table.compact .game-log:empty {
+  display: none;
+}
+
+.game-table.compact .game-log li:nth-child(n + 4) {
+  display: none;
+}
+
+.game-table.compact .game-error {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  z-index: 6;
+  grid-area: auto;
+  max-width: 80%;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 70%);
+  font-size: 0.8rem;
+  transform: translateX(-50%);
+}
+
+/* Xoay ngang: hai bên là đối thủ, hàng dưới cùng là bài ở giữa, avatar của mình ở góc phải dưới. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-table.compact {
+    padding: 6px 8px 4px;
+    grid-template-columns: minmax(88px, 1fr) minmax(0, 3fr) minmax(88px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "info top leave"
+      "left trick right"
+      "turn turn turn"
+      "actions actions actions"
+      ". hand mine";
+  }
+
+  .game-table.compact .my-hand {
+    --cw: clamp(30px, 10dvh, 44px);
+
+    padding-top: 16px;
+  }
+
+  .game-table.compact .game-actions button {
+    min-height: 32px;
+    padding: 3px 12px;
+  }
+
+  .game-table.compact .my-seat {
+    align-self: end;
+  }
+
+  .game-table.compact .trick {
+    gap: 2px;
+  }
+}
+
+/* --- Đổi tên ở sảnh --- */
+.link-btn {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.85em;
+}
+
+.rename-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rename-form input {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 40px;
+}
+
+@media (width <= 600px) {
+  .waiting-table .seat-name {
+    font-size: 0.88em;
+  }
+
+  .waiting-table .seat-status {
+    font-size: 0.76em;
+  }
+}
+
+/* --- Card chat kéo lên từ dưới (~60% màn hình) --- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  background: rgb(0 0 0 / 35%);
+  animation: fade-in 180ms var(--ease);
+}
+
+.chat-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(100%, 560px);
+  height: 60dvh;
+  margin: 0 auto;
+  padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: var(--surface-elevated);
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 40%);
+  animation: sheet-up 240ms var(--ease);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.sheet-handle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 5px;
+  margin: 0 auto 4px;
+  border-radius: 3px;
+  background: var(--muted);
+  opacity: 0.5;
+}
+
+/* Ô nhập nằm sát phía trên card để bàn phím ảo (mobile) không che. */
+.chat-compose {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-compose input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 16px; /* >= 16px để iOS không tự phóng to khi bấm vào ô nhập */
+}
+
+.send-btn {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  min-height: 46px;
+  padding: 0;
+  border-color: var(--accent);
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.chat-count,
+.chat-section {
+  margin: 0;
+}
+
+.chat-count {
+  margin-top: -4px;
+  text-align: right;
+}
+
+.chat-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-presets button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+}
+
+/* --- Lá bài đánh ra giữa bàn: số trên, chất dưới ở góc; chất lớn ở góc đối diện (giống bài thật) --- */
+.game-table .trick-cards {
+  --tw: 54px;
+
+  gap: 0;
+}
+
+.game-table .trick-cards .card {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: var(--tw);
+  min-width: 0;
+  height: calc(var(--tw) * 1.42);
+  min-height: 0;
+  padding: 5px 6px;
+  text-align: left;
+  line-height: 1;
+}
+
+.game-table .trick-cards .card .rk {
+  display: block;
+  font-size: calc(var(--tw) * 0.36);
+  font-weight: 800;
+}
+
+.game-table .trick-cards .card .st {
+  display: block;
+  margin-top: 1px;
+  font-size: calc(var(--tw) * 0.3);
+}
+
+.game-table .trick-cards .card::after {
+  content: attr(data-suit);
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: calc(var(--tw) * 0.52);
+  line-height: 1;
+}
+
+/* Các lá luôn nằm trên một hàng. Ít lá: cách nhau thoáng; nhiều lá (sảnh, đôi thông): chồng vừa đủ để vừa khu vực giữa bàn,
+   số ở góc trái vẫn đọc được. Độ chồng tính theo bề rộng khu vực (cqw) và số lá (--n). */
+.game-table .trick {
+  container-type: inline-size;
+}
+
+.game-table .trick-cards {
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.game-table .trick-cards .card {
+  flex: 0 0 auto;
+}
+
+.game-table .trick-cards .card + .card {
+  margin-left: 6px;
+  margin-left: clamp(
+    calc(var(--tw) * -0.8),
+    calc((100cqw - var(--tw)) / (var(--n, 2) - 1) - var(--tw)),
+    6px
+  );
+}
+.game-table.compact .trick-cards {
+  --tw: 42px;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-table.compact .trick-cards {
+    --tw: 36px;
+  }
+}
+
+/* --- Popup: tiêu đề cố định, nội dung cuộn bên trong, không bị cắt khi màn hình thấp (xoay ngang) --- */
+.dialog-backdrop {
+  padding: 12px;
+}
+
+.dialog.modal {
+  box-sizing: border-box; /* padding + viền nằm trong max-height */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+}
+
+.dialog.modal.wide {
+  width: min(960px, 100%);
+}
+
+.dialog.modal.result {
+  width: min(720px, 100%);
+}
+
+.modal-head {
+  flex: 0 0 auto;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dialog.modal > .dialog-actions {
+  flex: 0 0 auto;
+  padding-top: 4px;
+}
+
+@media (max-height: 500px) {
+  .dialog.modal {
+    padding: 12px 16px;
+  }
+
+  .modal-body .data-table th,
+  .modal-body .data-table td {
+    padding: 4px 6px;
+    font-size: 0.85rem;
+  }
+}
+
+.modal-body > * {
+  flex: 0 0 auto; /* không để các khối (bảng điểm, danh sách) bị co lại: nội dung dài thì cuộn */
+}
+
+/* Màn dọc hẹp: nhiều lá (sảnh, đôi thông) thì thu nhỏ từng lá để vẫn thấy số ở góc khi chồng lên nhau. */
+@media (width <= 600px) {
+  .game-table.compact .trick-cards:is([data-n="5"], [data-n="6"], [data-n="7"]) {
+    --tw: 36px;
+  }
+
+  .game-table.compact .trick-cards:is([data-n="8"], [data-n="9"], [data-n="10"], [data-n="11"], [data-n="12"]) {
+    --tw: 30px;
   }
 }

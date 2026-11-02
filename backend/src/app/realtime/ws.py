@@ -19,7 +19,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import Settings
 from app.errors import AppError
-from app.realtime.chat import CHAT_PHRASES
+from app.realtime.chat import CHAT_MAX_LENGTH, CHAT_PHRASES, normalize_chat_text
 from app.realtime.hub import Connection, RoomHub, envelope
 from app.security import SlidingWindowLimiter
 from app.services import guests, rooms
@@ -179,13 +179,24 @@ async def _dispatch(app: Any, conn: Connection, message: dict[str, Any]) -> tupl
                 "pong", {"serverTime": time.time()}, room_id=conn.room_id, request_id=request_id
             ), False
         if msg_type == "chat.send":
-            phrase = payload.get("phrase")
-            if not isinstance(phrase, str) or phrase not in CHAT_PHRASES:
-                raise ProtocolError("PAYLOAD_INVALID", "Câu chat không hợp lệ")
-            wait = app.state.chat_cooldown.check((conn.room_id, conn.guest_id))
+            # Gửi đúng một trong hai: {"phrase": mã câu có sẵn} hoặc {"text": chữ tự do}.
+            chat: dict[str, Any]
+            if ("phrase" in payload) == ("text" in payload):
+                raise ProtocolError("PAYLOAD_INVALID", "Chat phải gửi phrase hoặc text")
+            if "phrase" in payload:
+                phrase = payload["phrase"]
+                if not isinstance(phrase, str) or phrase not in CHAT_PHRASES:
+                    raise ProtocolError("PAYLOAD_INVALID", "Câu chat không hợp lệ")
+                chat = {"phrase": phrase}
+            else:
+                text = normalize_chat_text(payload["text"])
+                if text is None:
+                    raise ProtocolError("PAYLOAD_INVALID", f"Tin nhắn phải từ 1 đến {CHAT_MAX_LENGTH} ký tự")
+                chat = {"text": text}
+            wait = app.state.chat_cooldown.check((conn.room_id, conn.guest_id))  # chỉ tính khi tin hợp lệ
             if wait > 0:
                 raise ProtocolError("CHAT_COOLDOWN", f"Chờ {math.ceil(wait)} giây nữa mới chat tiếp được")
-            await hub.send_room_event(conn.room_id, "chat.message", {"seat": conn.seat_no, "phrase": phrase})
+            await hub.send_room_event(conn.room_id, "chat.message", {"seat": conn.seat_no, **chat})
             return envelope("ack", {"type": msg_type}, room_id=conn.room_id, request_id=request_id), False
         if msg_type in ("game.play", "game.pass"):
             result: tuple[dict[str, Any], bool] = await app.state.games.handle_command(

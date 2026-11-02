@@ -1,7 +1,7 @@
 # Lớp học Thầy Trung — Tiến Lên Miền Nam
 
 Bản Render Free dùng RAM, không PostgreSQL, Redis, SQLite hay dịch vụ lưu trữ ngoài.
-Giao diện React/CSS và rules engine gốc được giữ nguyên; các file thiếu trên GitHub được khôi phục từ `giaitri-github-ready.zip`.
+Source được khôi phục từ ZIP gốc và cập nhật các bản sửa trong `giaitri-main (1).zip`: chat ngắn tự do/câu mẫu, kéo thả xếp bài, giao diện điện thoại dọc/ngang, popup luật/thông tin và đổi tên ở sảnh. Sau đút mù 3♠, ván tiếp theo mở bằng 3♣ theo bản sửa mới. Kiến trúc Render Free/RAM được giữ nguyên.
 
 ## Chơi online
 
@@ -10,7 +10,7 @@ Giao diện React/CSS và rules engine gốc được giữ nguyên; các file t
 - Đủ 4 người kết nối và sẵn sàng thì chia bài. Server kiểm tra mọi nước đánh bằng engine gốc.
 - HTTPS, REST và WebSocket cùng domain. Client tự chọn `wss://` khi trang dùng HTTPS.
 - 00:00 Asia/Tokyo: xóa phòng chờ và dữ liệu ngày cũ. Phòng đang chơi chốt ván rồi đóng/xóa; không bắt đầu ván mới ở phòng đó. Phòng tạo trong ngày mới không bị lần reset đang chờ ảnh hưởng.
-- Bộ luật mặc định gốc v1 được cố định. API Admin/đăng nhập và chỉnh luật không được bật trong bản RAM public; mã PostgreSQL cũ còn lại trong repo chỉ để tham khảo, không được cài hay chép vào image production.
+- Bộ cấu hình luật v1 được cố định; quy tắc mở ván sau đút mù 3♠ áp dụng bản sửa mới. API Admin/đăng nhập và chỉnh luật không được bật trong bản RAM public; mã PostgreSQL cũ còn lại trong repo chỉ để tham khảo, không được cài hay chép vào image production.
 - Lịch sử/replay chỉ tạm: giữ tối đa 100 ván và 100 phiên để giới hạn RAM. Chỉ thành viên được đọc; không được xem bài người khác khi ván đang chơi.
 
 ## Chạy và kiểm thử
