@@ -1,6 +1,6 @@
 # Lớp học Thầy Trung
 
-Web chơi Tiến Lên Miền Nam 4 người, luật do Admin quản lý tập trung. Không dùng tiền thật.
+
 
 - Tài liệu: [GĐ1 Discovery](docs/gd1/GD1-Discovery.md) · [GĐ2 Design](docs/gd2/README.md) · [GĐ3 Plan](docs/gd3/GD3-Plan.md) · [Vận hành](docs/runbook.md)
 - Nguồn luật: `Cau_hinh_luat_Tien_Len_Mien_Nam.xlsx` → `tools/gen_rule_catalog.py` → `engine/src/tlmn_engine/catalog.json`
