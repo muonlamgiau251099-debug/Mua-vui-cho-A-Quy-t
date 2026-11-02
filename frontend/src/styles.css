@@ -1,0 +1,1770 @@
+:root {
+  /* Dark theme: nền → panel → surface → surface-elevated */
+  --bg: #17191f;
+  --panel: #20232b;
+  --surface: #282c36;
+  --surface-elevated: #323744;
+  --fg: #e8edf7;
+  --muted: #a6afc0;
+  --accent: #6689d8;
+  --accent-hover: #7a9be2;
+  --on-accent: #10131a; /* chữ trên nền accent: tương phản ≥ 5:1 (chữ trắng chỉ ~3.4:1) */
+  --border: #3a404d;
+  --danger: #e06c75;
+  --warn: #e5b567;
+  --info: #78a9e8;
+  --success: #78c69a;
+  --accent-soft: rgb(102 137 216 / 16%);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-md: 0 6px 18px rgb(0 0 0 / 35%);
+  --dur: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  /* Bàn nỉ xanh (giữ nét bàn bài) và mặt lá bài */
+  --felt-1: #1c5f4e;
+  --felt-2: #133f35;
+  --felt-3: #0e2c26;
+  --card-face: #fbf8ef;
+  --card-edge: #c9c2ad;
+  --card-ink: #1b1b1b;
+  --card-red: #c0392b;
+  color-scheme: dark;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  transition:
+    transform var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Hover chỉ trên thiết bị có chuột. :where() giữ độ đặc hiệu = 0 nên không đè màu của .primary/.pass/.play/lá bài. */
+@media (hover: hover) {
+  :where(button:not(.card):hover:not(:disabled)) {
+    transform: translateY(-1px);
+    background: var(--surface-elevated);
+    border-color: var(--accent);
+  }
+
+  button.primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  button.danger:hover:not(:disabled) {
+    background: rgb(224 108 117 / 12%);
+    border-color: var(--danger);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  button:hover:not(:disabled) {
+    transform: none !important;
+  }
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.app.wide {
+  max-width: 1200px;
+}
+
+.app.narrow {
+  max-width: 420px;
+}
+
+.app h1 {
+  color: var(--accent);
+}
+
+.hint,
+.excel-ids,
+.rule-field-note {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.error,
+.issue-error {
+  color: var(--danger);
+}
+
+.issue-warning {
+  color: var(--warn);
+}
+
+.issue-info {
+  color: var(--info);
+}
+
+.ok {
+  color: var(--success);
+}
+
+.form {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-bar nav {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-bar nav a {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 transparent; /* chỗ cho indicator, không làm lệch layout */
+  transition:
+    color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.admin-bar nav a:hover {
+  color: var(--fg);
+  background: var(--surface);
+}
+
+.admin-bar nav a.active {
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.admin-user {
+  margin-left: auto;
+}
+
+.dashboard-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dirty {
+  color: var(--warn);
+}
+
+.message {
+  padding: 8px 12px;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  cursor: pointer;
+}
+
+.report {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.issue-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+}
+
+.tab.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.rule-field {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.rule-field.changed {
+  border-color: var(--accent);
+}
+
+.rule-field.has-issue {
+  border-color: var(--danger);
+}
+
+.rule-field-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rule-field-head label {
+  cursor: help;
+}
+
+.toggle {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.order-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.order-list li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.order-list li span {
+  flex: 1;
+}
+
+.data-table,
+.diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.data-table th,
+.data-table td,
+.diff-table th,
+.diff-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 60%);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.dialog {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: 8px;
+  animation: dialog-in 180ms var(--ease);
+}
+
+.dialog-backdrop {
+  animation: fade-in 180ms var(--ease);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ack {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (width <= 600px) {
+  .data-table {
+    font-size: 0.85em;
+  }
+}
+
+/* --- Khách / phòng chờ (slice S2) --- */
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85em;
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.card {
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.banner {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: var(--warn);
+  color: var(--on-accent);
+}
+
+.room-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-head h1 {
+  margin-bottom: 4px;
+}
+
+.invite {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.invite code {
+  overflow-wrap: anywhere;
+}
+
+/* Phòng chờ: cùng bố cục với bàn chơi — bạn ở dưới, ghế kế tiếp bên trái, đối diện ở trên, ghế trước bên phải. */
+.waiting-table {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(0, 1.6fr) minmax(96px, 1fr);
+  grid-template-areas:
+    ". top ."
+    "left center right"
+    ". me .";
+  gap: 14px 8px;
+  align-items: center;
+  margin: 16px 0;
+  padding: 18px 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: radial-gradient(ellipse 90% 80% at 50% 50%, var(--felt-1) 0%, var(--felt-2) 55%, var(--felt-3) 100%);
+}
+
+.seat-ring {
+  display: contents;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.seat-card {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.seat-card.pos-top {
+  grid-area: top;
+}
+
+.seat-card.pos-left {
+  grid-area: left;
+}
+
+.seat-card.pos-right {
+  grid-area: right;
+}
+
+.seat-card.pos-me {
+  grid-area: me;
+}
+
+.seat-card .avatar {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  background: var(--surface-elevated);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.4em;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+.seat-card.you .avatar {
+  border-color: var(--accent);
+}
+
+.seat-card.is-ready .avatar {
+  box-shadow: 0 0 0 3px rgb(120 198 154 / 45%);
+}
+
+.seat-card.empty .avatar {
+  border: 2px dashed var(--muted);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.seat-title {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.seat-name {
+  max-width: 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.seat-status {
+  font-size: 0.85em;
+}
+
+.table-center {
+  grid-area: center;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--muted);
+}
+
+.table-code {
+  color: var(--fg);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.waiting-room .actions button {
+  min-height: 44px;
+}
+
+@media (width <= 600px) {
+  .waiting-table {
+    grid-template-columns: minmax(72px, 1fr) minmax(0, 1.3fr) minmax(72px, 1fr);
+    padding: 12px 6px;
+  }
+
+  .seat-card .avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15em;
+  }
+
+  .table-code {
+    font-size: 1.15em;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* --- Bàn chơi (slice S4) --- */
+/* Bàn nỉ: đối thủ quanh bàn, bài trên bàn ở giữa, nút hành động và bài xòe của mình ở dưới. */
+.game-table {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(0, 2.2fr) minmax(84px, 1fr);
+  grid-template-areas:
+    ". top ."
+    "left trick right"
+    "turn turn turn"
+    "err err err"
+    "actions actions actions"
+    "hand hand hand"
+    "mine mine mine"
+    "log log log"
+    "foot foot foot";
+  gap: 10px 8px;
+  padding: 14px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: radial-gradient(ellipse 90% 80% at 50% 40%, var(--felt-1) 0%, var(--felt-2) 55%, var(--felt-3) 100%);
+}
+
+.opponents {
+  display: contents;
+}
+
+.opponent {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px;
+  text-align: center;
+}
+
+.opponent.pos-left {
+  grid-area: left;
+  align-self: end;
+}
+
+.opponent.pos-top {
+  grid-area: top;
+}
+
+.opponent.pos-right {
+  grid-area: right;
+  align-self: end;
+}
+
+.game-table .avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  background: var(--surface-elevated);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.3em;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+}
+
+.opponent.turn .avatar {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(102 137 216 / 35%);
+}
+
+.opponent-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+
+/* Cảnh báo người khác còn đúng 1 lá, nằm dưới tên. */
+.last-card {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--on-accent);
+  font-size: 0.78em;
+  font-weight: 700;
+  white-space: nowrap;
+  animation: soft-blink 1s ease-in-out infinite;
+}
+
+/* Đến lượt ai thì người đó sáng lên: vòng sáng lan ra từ avatar + tên đổi màu. */
+.game-table .avatar {
+  position: relative;
+}
+
+.opponent.turn .opponent-name {
+  color: var(--accent);
+}
+
+.opponent.turn .avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: turn-ring 1.4s ease-out infinite;
+}
+
+.turn-bar.mine {
+  animation: soft-blink 1.6s ease-in-out infinite;
+}
+
+.game-table.my-turn .my-hand {
+  border-bottom: 2px solid var(--accent);
+}
+
+@keyframes turn-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+@keyframes soft-blink {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Bài vừa đánh bay vào từ phía người đánh. */
+.trick-cards.from-me {
+  --dx: 0;
+  --dy: 140px;
+}
+
+.trick-cards.from-left {
+  --dx: -160px;
+  --dy: 0;
+}
+
+.trick-cards.from-top {
+  --dx: 0;
+  --dy: -140px;
+}
+
+.trick-cards.from-right {
+  --dx: 160px;
+  --dy: 0;
+}
+
+.game-table .trick-cards .card {
+  animation: card-in 280ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.8) rotate(-8deg);
+  }
+}
+
+/* "Tứ quý nè !!!": chữ tròn, to, cong vòng cung, bật ra rồi mờ dần. */
+.game-table {
+  position: relative;
+}
+
+.play-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  padding-top: 14%;
+  pointer-events: none;
+}
+
+.burst-inner {
+  display: grid;
+  justify-items: center;
+  width: min(92%, 460px);
+  animation: burst-pop 1.9s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.burst-who {
+  padding: 1px 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 45%);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.burst-inner svg {
+  width: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 5px 0 rgb(0 0 0 / 35%));
+}
+
+.burst-inner text {
+  font-family: "Arial Rounded MT Bold", Nunito, "Trebuchet MS", system-ui, sans-serif;
+  font-weight: 900;
+  stroke: #8a3410;
+  stroke-width: 9px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+@keyframes burst-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-6deg);
+  }
+
+  14% {
+    opacity: 1;
+    transform: scale(1.15) rotate(2deg);
+  }
+
+  24% {
+    transform: scale(1) rotate(0);
+  }
+
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+.opponent .muted {
+  min-height: 1.2em;
+  font-size: 0.75em;
+}
+
+.trick {
+  grid-area: trick;
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 8px;
+  text-align: center;
+}
+
+.trick-cards,
+.my-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.game-table .trick-cards {
+  gap: 0;
+}
+
+.game-table .trick-cards .card + .card {
+  margin-left: -14px;
+}
+
+.card {
+  min-width: 46px;
+  min-height: 64px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--card-edge);
+  background: var(--card-face);
+  color: var(--card-ink);
+  font-weight: 700;
+  font-size: 1.05em;
+  display: inline-grid;
+  place-items: center;
+}
+
+.card.red {
+  color: var(--card-red);
+}
+
+button.card {
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+button.card.selected {
+  transform: translateY(-10px);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.turn-bar {
+  grid-area: turn;
+  min-height: 1.4em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.turn-bar.mine {
+  color: var(--accent);
+}
+
+.game-actions {
+  grid-area: actions;
+  justify-content: center;
+  gap: 10px;
+}
+
+.game-actions button {
+  min-height: 44px;
+  padding: 8px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.game-actions .pass {
+  border-color: #c98b1f;
+  background: #e8b84a;
+  color: #2a1d00;
+}
+
+.game-actions .play {
+  border-color: #2fa37f;
+  background: #34b48c;
+  color: #05261c;
+}
+
+.game-actions .pass:disabled,
+.game-actions .play:disabled {
+  border-color: var(--border);
+  background: rgb(0 0 0 / 30%);
+  color: var(--muted);
+}
+
+.game-actions .tool {
+  min-height: 36px;
+  padding: 4px 14px;
+  background: rgb(0 0 0 / 30%);
+  font-weight: 500;
+  font-size: 0.85em;
+}
+
+/* Bài của mình xòe chồng lên nhau, lá được chọn nhô lên. */
+.game-table .my-hand {
+  --cw: clamp(40px, 11vw, 56px); /* bề rộng 1 lá; 13 lá xòe luôn vừa khung nên không cần cuộn */
+
+  grid-area: hand;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 24px 6px 6px;
+  justify-content: center;
+  touch-action: none; /* kéo ngang để chọn nhiều lá, không cuộn trang */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game-table .my-hand .card {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--cw);
+  min-width: 0;
+  min-height: calc(var(--cw) * 1.45);
+  padding: 5px 4px;
+  place-items: start;
+  box-shadow: -3px 0 6px rgb(0 0 0 / 25%);
+  font-size: clamp(0.85rem, 3.2vw, 1.05rem);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 160ms var(--ease),
+    box-shadow 160ms var(--ease),
+    border-color 160ms var(--ease);
+}
+
+.game-table .my-hand .card + .card {
+  margin-left: calc(var(--cw) * -0.5);
+}
+
+/* Vùng bấm kéo dài lên/xuống bằng đúng độ nhô của lá, để lá nhô lên không làm con trỏ "rớt" khỏi lá và nháy qua lại. */
+.game-table .my-hand button.card::before {
+  content: "";
+  position: absolute;
+  inset: -24px 0 -12px;
+}
+
+@media (hover: hover) {
+  .game-table .my-hand button.card:hover:not(.selected) {
+    transform: translateY(-6px);
+  }
+}
+
+.game-table .my-hand button.card.selected {
+  transform: translateY(-18px);
+}
+
+.game-error {
+  grid-area: err;
+  margin: 0;
+  text-align: center;
+}
+
+.game-log {
+  grid-area: log;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.game-foot {
+  grid-area: foot;
+  margin: 0;
+}
+
+.transfer-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (width <= 600px) {
+  .card {
+    min-width: 38px;
+    min-height: 54px;
+    font-size: 0.95em;
+  }
+
+  .game-table {
+    grid-template-columns: minmax(70px, 1fr) minmax(0, 2fr) minmax(70px, 1fr);
+    padding: 10px 6px;
+  }
+
+  .game-table .avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 1.1em;
+  }
+
+  .game-actions button {
+    padding: 8px 16px;
+  }
+
+}
+
+/* --- Điểm phiên / lịch sử (slice S5) --- */
+.scoreboard {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.scoreboard-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scoreboard ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.scoreboard li span {
+  margin-right: 8px;
+}
+
+.scoreboard li.you {
+  color: var(--accent);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.session-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* --- Xem lại ván (slice S6) --- */
+.replay-controls input[type="range"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.replay-event {
+  min-height: 1.5em;
+  margin: 12px 0;
+  font-weight: 600;
+}
+
+.replay-hands {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.replay-hand {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.replay-hand.turn {
+  border-color: var(--accent);
+}
+
+.replay-hand .my-hand {
+  justify-content: flex-start;
+  margin-top: 6px;
+}
+
+/* --- Trang chủ / Sảnh chờ (redesign) --- */
+.home,
+.lobby {
+  min-height: 100vh;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgb(102 137 216 / 14%) 0%, transparent 70%);
+}
+
+.home {
+  max-width: 480px;
+}
+
+.lobby {
+  max-width: 880px;
+}
+
+.accent-text {
+  color: var(--accent);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brand {
+  text-align: center;
+  margin: 8px 0 24px;
+}
+
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  border: 1px solid var(--accent);
+  background: rgb(102 137 216 / 14%);
+  color: var(--accent);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.brand h1 {
+  margin: 12px 0 4px;
+  color: var(--fg);
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+  letter-spacing: -0.01em;
+}
+
+.panel {
+  padding: 20px;
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.panel h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.panel label {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.panel input {
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.panel button {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+button.lg {
+  min-height: 48px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.panel button.primary {
+  font-weight: 600;
+}
+
+.session-item {
+  transition:
+    transform var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+@media (hover: hover) {
+  .session-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.welcome {
+  text-align: center;
+}
+
+.welcome-name {
+  margin: 4px 0 16px;
+  font-size: 1.6rem;
+}
+
+.welcome .actions {
+  justify-content: center;
+}
+
+.home-foot {
+  text-align: center;
+}
+
+.status {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status.up .dot {
+  background: var(--success);
+}
+
+.status.down .dot {
+  background: var(--danger);
+}
+
+.lobby-head {
+  margin-bottom: 20px;
+}
+
+.lobby-head h1 {
+  margin: 8px 0 4px;
+  font-size: clamp(1.7rem, 5vw, 2.2rem);
+}
+
+.lobby-head .back {
+  font-size: 0.9em;
+  text-decoration: none;
+}
+
+.lobby-head .back:hover {
+  text-decoration: underline;
+}
+
+.lobby-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.lobby-actions .panel {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  margin: 0;
+}
+
+.lobby-actions .panel > * {
+  margin: 0;
+}
+
+.join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.join-row input {
+  flex: 1;
+}
+
+.code-input {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.recent {
+  margin-top: 24px;
+}
+
+.recent h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.session-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-item {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.session-item:hover {
+  border-color: var(--accent);
+  background: var(--surface-elevated);
+}
+
+.session-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: rgb(102 137 216 / 14%);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (width >= 601px) {
+  .session-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (width >= 1024px) {
+  .lobby-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (width <= 600px) {
+  .home,
+  .lobby {
+    padding: 16px 16px 32px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
+
+/* --- Thông báo thứ hạng (Nhất / Nhì / Ba / Bét) --- */
+.rank-banner-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(8 10 16 / 45%);
+  pointer-events: none; /* vẫn xem được bàn phía sau; chỉ nút Xác nhận bấm được */
+  animation: fade-in 200ms var(--ease);
+}
+
+.rank-banner {
+  --rb-fill: #ffd23f;
+  --rb-stroke: #7a3e00;
+  --rb-glow: rgb(255 200 60 / 55%);
+
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: min(100%, 560px);
+  padding: 28px 16px 20px;
+  text-align: center;
+  pointer-events: auto;
+  animation: rank-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+
+.rank-banner::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  z-index: -1;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, var(--rb-glow) 0%, transparent 70%);
+}
+
+.rank-2 {
+  --rb-fill: #f1f4fa;
+  --rb-stroke: #4a5568;
+  --rb-glow: rgb(170 190 230 / 50%);
+}
+
+.rank-3 {
+  --rb-fill: #ffb27a;
+  --rb-stroke: #7a3510;
+  --rb-glow: rgb(255 150 90 / 45%);
+}
+
+.rank-4 {
+  --rb-fill: #c4c8d0;
+  --rb-stroke: #23262c;
+  --rb-glow: rgb(120 126 140 / 40%);
+}
+
+.rb-crown {
+  font-size: clamp(2rem, 9vw, 3.2rem);
+  line-height: 1;
+  filter: drop-shadow(0 3px 0 rgb(0 0 0 / 35%));
+}
+
+.rb-title,
+.rb-sub {
+  font-family: "Arial Rounded MT Bold", Nunito, "Trebuchet MS", system-ui, sans-serif;
+  font-weight: 900;
+  color: var(--rb-fill);
+  -webkit-text-stroke: 7px var(--rb-stroke);
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 var(--rb-stroke);
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+
+.rb-title {
+  font-size: clamp(2.4rem, 12vw, 4.4rem);
+}
+
+.rb-sub {
+  font-size: clamp(1.4rem, 7vw, 2.4rem);
+  -webkit-text-stroke-width: 5px;
+}
+
+/* Nhãn tên + điểm: bo tròn, viền trắng, không bẻ cong. */
+.rb-pill {
+  margin-top: 6px;
+  padding: 4px 18px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #11151c;
+  font-size: clamp(0.9rem, 3.6vw, 1.1rem);
+  font-weight: 700;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 35%);
+}
+
+.rank-banner > button {
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 8px 28px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.rb-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rb-confetti i {
+  position: absolute;
+  top: -8%;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  background: #ff5fa2;
+  opacity: 0;
+  animation: confetti-fall 1.6s linear 2;
+}
+
+.rb-confetti i:nth-child(3n) {
+  background: #5fd0ff;
+}
+
+.rb-confetti i:nth-child(3n + 1) {
+  background: #ffd23f;
+}
+
+.rb-confetti i:nth-child(1) { left: 6%; animation-delay: 0s; }
+.rb-confetti i:nth-child(2) { left: 16%; animation-delay: 0.3s; }
+.rb-confetti i:nth-child(3) { left: 27%; animation-delay: 0.1s; }
+.rb-confetti i:nth-child(4) { left: 37%; animation-delay: 0.5s; }
+.rb-confetti i:nth-child(5) { left: 47%; animation-delay: 0.2s; }
+.rb-confetti i:nth-child(6) { left: 56%; animation-delay: 0.7s; }
+.rb-confetti i:nth-child(7) { left: 65%; animation-delay: 0.05s; }
+.rb-confetti i:nth-child(8) { left: 74%; animation-delay: 0.4s; }
+.rb-confetti i:nth-child(9) { left: 83%; animation-delay: 0.25s; }
+.rb-confetti i:nth-child(10) { left: 91%; animation-delay: 0.6s; }
+.rb-confetti i:nth-child(11) { left: 21%; animation-delay: 0.9s; }
+.rb-confetti i:nth-child(12) { left: 78%; animation-delay: 0.8s; }
+
+@keyframes rank-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-4deg);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(120vh) rotate(540deg);
+  }
+}
+
+/* --- Chat nhanh (bong bóng pixel) --- */
+.opponent {
+  position: relative;
+}
+
+/* Avatar của mình ở giữa phía dưới, dưới hàng bài. Nút chat (PC) nằm bên trái avatar, bong bóng hiện bên phải
+   avatar: cả hai đều không đè lên bài hay lên người chơi khác. */
+.my-seat {
+  grid-area: mine;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.my-seat .chat-wrap {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.my-avatar {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.my-name {
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.my-seat .avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1em;
+}
+
+.my-avatar .chat-bubble.tail-side {
+  top: 4px;
+  left: calc(100% + 16px);
+}
+
+.chat-wrap {
+  position: relative;
+}
+
+.chat-toggle {
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 30%);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.chat-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 8;
+  display: grid;
+  gap: 4px;
+  width: 200px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-md);
+  animation: dialog-in 140ms var(--ease);
+}
+
+.chat-menu button {
+  min-height: 38px;
+  padding: 6px 12px;
+  text-align: left;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+
+/* Bong bóng pixel: viền đen 3px bằng box-shadow (góc tự khuyết như pixel art), đáy tím nhạt, đuôi nhọn bậc thang. */
+.chat-bubble {
+  position: absolute;
+  z-index: 6;
+  bottom: calc(100% + 4px);
+  width: max-content;
+  max-width: 150px;
+  padding: 4px 10px 8px;
+  background: #fff;
+  color: #14141c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow:
+    0 -3px #000,
+    0 3px #000,
+    -3px 0 #000,
+    3px 0 #000,
+    inset 0 -4px #c4c4ea;
+  pointer-events: none;
+}
+
+.chat-bubble::after {
+  content: "";
+  position: absolute;
+  top: calc(100% - 3px);
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  box-shadow:
+    -3px 0 #000,
+    3px 0 #fff,
+    6px 0 #000,
+    -3px 3px #000,
+    0 3px #fff,
+    3px 3px #000,
+    -3px 6px #000,
+    0 6px #000;
+}
+
+.chat-bubble.tail-left {
+  left: calc(50% - 12px);
+}
+
+.chat-bubble.tail-left::after {
+  left: 12px;
+}
+
+.chat-bubble.tail-right {
+  right: calc(50% - 12px);
+}
+
+.chat-bubble.tail-right::after {
+  right: 12px;
+  transform: scaleX(-1);
+}
+
+/* Người ngồi trên: không còn chỗ phía trên avatar nên bong bóng hiện bên phải, đuôi chỉ sang trái vào avatar. */
+.chat-bubble.tail-side {
+  bottom: auto;
+  top: 6px;
+  left: calc(50% + 42px);
+}
+
+.chat-bubble.tail-side::after {
+  top: calc(50% - 3px);
+  left: -3px;
+  transform: rotate(90deg);
+}
+
+@media (width <= 600px) {
+  .chat-bubble {
+    max-width: 130px;
+    font-size: 0.74rem;
+  }
+
+  .chat-bubble.tail-side {
+    top: 2px;
+    left: calc(50% + 34px);
+  }
+
+  .game-actions .chat-wrap {
+    order: 5;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chat-bubble {
+    transform-origin: 12px 100%;
+    animation: bubble-life 4s ease-out both;
+  }
+}
+
+@keyframes bubble-life {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.5);
+  }
+
+  6% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+  }
+
+  10% {
+    transform: scale(1);
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
