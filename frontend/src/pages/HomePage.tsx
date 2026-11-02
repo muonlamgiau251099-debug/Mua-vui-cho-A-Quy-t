@@ -50,7 +50,6 @@ export function HomePage() {
         <h1>
           Lớp học <span className="accent-text">Thầy Trung</span>
         </h1>
-        <p className="muted">Chơi 4 người với bạn bè. Không dùng tiền thật.</p>
       </header>
 
       {me.data ? (
