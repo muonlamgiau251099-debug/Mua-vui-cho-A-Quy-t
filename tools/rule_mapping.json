@@ -1,0 +1,1302 @@
+{
+ "1": {
+  "ruleKey": "deck.size",
+  "class": "fixedInvariant",
+  "type": "int =52",
+  "default": "52",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": "Test: deck 52 lá, không trùng, không Joker"
+ },
+ "2": {
+  "ruleKey": "table.playerCount",
+  "class": "fixedInvariant",
+  "type": "int =4",
+  "default": "4",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "Yêu cầu: đúng 4 người",
+  "notes": "Start chỉ khi 4 ghế đủ"
+ },
+ "3": {
+  "ruleKey": "deal.cardsPerPlayer",
+  "class": "fixedInvariant",
+  "type": "int =13",
+  "default": "13",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "1,2",
+  "notes": "Property test: 4×13=52"
+ },
+ "4": {
+  "ruleKey": "turn.direction",
+  "class": "fixedInvariant",
+  "type": "enum CLOCKWISE",
+  "default": "CLOCKWISE",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "105,106",
+  "notes": "next_seat = (seat+1)%4 bỏ qua người hết bài"
+ },
+ "5": {
+  "ruleKey": "card.rankOrder",
+  "class": "fixedInvariant",
+  "type": "list",
+  "default": "3<…<A<2",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "17,21",
+  "notes": "Test so rank"
+ },
+ "6": {
+  "ruleKey": "card.suitOrder",
+  "class": "fixedInvariant",
+  "type": "list",
+  "default": "♠<♣<♦<♥",
+  "defaultSource": "Excel",
+  "status": "Rõ",
+  "dependencies": "7,26,89",
+  "notes": "Test so chất"
+ },
+ "7": {
+  "ruleKey": "firstGame.leaderCard",
+  "class": "fixedInvariant",
+  "type": "card",
+  "default": "3♣",
+  "defaultSource": "Duyệt D1",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "6,89",
+  "notes": "Ván đầu: người giữ 3♣ đi đầu"
+ },
+ "8": {
+  "ruleKey": "firstGame.mustIncludeLeaderCard",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "7",
+  "notes": "validate_move: nước đầu phải chứa 3♣ (đơn/đôi/sảnh/bộ đều được)"
+ },
+ "9": {
+  "ruleKey": "nextGame.leaderIsPreviousWinner",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Trừ ván sau tới trắng (60); người thắng rời bàn: Q-P2-1",
+  "dependencies": "7,60",
+  "notes": "Người nhất ván trước đánh tự do"
+ },
+ "10": {
+  "ruleKey": "(→141) turn.timeLimitSeconds",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo 141",
+  "defaultSource": "Excel",
+  "status": "Trùng 141",
+  "dependencies": "141,13",
+  "notes": "Dùng 1 nguồn duy nhất là 141"
+ },
+ "11": {
+  "ruleKey": "play.beatRule",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "cùng loại, cùng số lá, mạnh hơn",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "24,25",
+  "notes": "compare_plays/can_beat"
+ },
+ "12": {
+  "ruleKey": "play.passAllowed",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true (trừ người mở vòng)",
+  "defaultSource": "Đề xuất",
+  "status": "Rõ",
+  "dependencies": "13",
+  "notes": "Leader không được pass"
+ },
+ "13": {
+  "ruleKey": "trick.passLocksUntilNewTrick",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "BẤT NHẤT D/E (Q-P1)",
+  "dependencies": "Ngoại lệ 42; E 'Quá 30 giây' trùng 141/142",
+  "notes": "Đã pass thì không đánh lại trong vòng"
+ },
+ "14": {
+  "ruleKey": "trick.lastPlayerLeads",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "người đánh cuối mở vòng mới",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "105",
+  "notes": "resolve_trick"
+ },
+ "15": {
+  "ruleKey": "finish.firstOutIsFirst",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "99",
+  "notes": ""
+ },
+ "16": {
+  "ruleKey": "finish.rankByFinishOrder",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "99-102,107",
+  "notes": ""
+ },
+ "17": {
+  "ruleKey": "compare.single",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "rank rồi suit",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "5,6",
+  "notes": "Unit test 52×52"
+ },
+ "18": {
+  "ruleKey": "compare.pair",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "rank",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "19": {
+  "ruleKey": "compare.pairTie",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "suit lá cao nhất",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "21": {
+  "ruleKey": "compare.straight",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "cùng số lá; so lá cao nhất; dài ≥3 (giả định)",
+  "defaultSource": "Excel (D)+Giả định",
+  "status": "Thiếu độ dài tối thiểu (Q-P1)",
+  "dependencies": "23",
+  "notes": ""
+ },
+ "22": {
+  "ruleKey": "compare.straightTie",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "suit lá cao nhất",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "23": {
+  "ruleKey": "straight.allowTwo",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "false",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "Áp dụng cả đôi thông (giả định)",
+  "notes": "Không vòng A-2-3"
+ },
+ "24": {
+  "ruleKey": "play.noCrossType",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "25",
+  "notes": ""
+ },
+ "25": {
+  "ruleKey": "play.chopException",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo bảng chặt 29-44",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "29-44",
+  "notes": "can_beat dùng chop matrix"
+ },
+ "26": {
+  "ruleKey": "compare.twoSuit",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "2♥>2♦>2♣>2♠",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "6",
+  "notes": ""
+ },
+ "27": {
+  "ruleKey": "compare.pairOfTwos",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "suit lá 2 lớn nhất",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "44",
+  "notes": ""
+ },
+ "29": {
+  "ruleKey": "chop.threePairSeq.vsSingleTwo",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "43,81,120",
+  "notes": "Chỉ đúng lượt"
+ },
+ "30": {
+  "ruleKey": "(cùng loại) threePairSeq vs threePairSeq",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "bộ lớn hơn thắng",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "120 (điểm khi 'chặt đè')",
+  "notes": ""
+ },
+ "31": {
+  "ruleKey": "chop.fourKind.vsSingleTwo",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "119",
+  "notes": ""
+ },
+ "32": {
+  "ruleKey": "chop.fourKind.vsPairTwo",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "119",
+  "notes": ""
+ },
+ "33": {
+  "ruleKey": "chop.fourKind.vsThreePairSeq",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "119,41",
+  "notes": ""
+ },
+ "34": {
+  "ruleKey": "(cùng loại) fourKind vs fourKind",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "tứ quý lớn hơn",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "119",
+  "notes": ""
+ },
+ "35": {
+  "ruleKey": "chop.fourPairSeq.vsSingleTwo",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D: Cho phép)",
+  "status": "Rõ",
+  "dependencies": "121",
+  "notes": ""
+ },
+ "36": {
+  "ruleKey": "chop.fourPairSeq.vsPairTwo",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D: Cho phép)",
+  "status": "Rõ",
+  "dependencies": "121",
+  "notes": ""
+ },
+ "37": {
+  "ruleKey": "chop.fourPairSeq.vsFourKind",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D: Cho phép)",
+  "status": "Rõ",
+  "dependencies": "121",
+  "notes": ""
+ },
+ "38": {
+  "ruleKey": "chop.fourPairSeq.vsThreePairSeq",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D: Cho phép)",
+  "status": "Rõ",
+  "dependencies": "121",
+  "notes": ""
+ },
+ "39": {
+  "ruleKey": "(cùng loại) fourPairSeq vs fourPairSeq",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "bộ lớn hơn",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "121",
+  "notes": ""
+ },
+ "41": {
+  "ruleKey": "chop.allowChain",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "83,119-121 (cách tính)",
+  "notes": "Chặt chồng nhiều tầng"
+ },
+ "42": {
+  "ruleKey": "chop.fourPairSeq.outOfTurn",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "CHƯA RÕ phạm vi (Q-P0-6)",
+  "dependencies": "Ngoại lệ của 13",
+  "notes": "can_interrupt; race → server serialize"
+ },
+ "43": {
+  "ruleKey": "chop.requiresTurn (3 đôi thông + tứ quý)",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Duyệt D6",
+  "status": "ĐÃ CHỐT (Excel sửa nhưng chưa lưu)",
+  "dependencies": "13; chỉ 4 đôi thông được ngoài lượt (42)",
+  "notes": "Tứ quý/3 đôi thông phải đúng lượt, chưa pass"
+ },
+ "44": {
+  "ruleKey": "chop.pairTwoOverPairTwo.scoreAsChop",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (E)",
+  "status": "Cần xác nhận (Q-P1)",
+  "dependencies": "27; 'tiền' → 'điểm'",
+  "notes": "Thực tế đôi 2 đè được đôi 2 luôn chứa 2♥"
+ },
+ "46": {
+  "ruleKey": "finish.allowTwoAsLastCard",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D) + G3",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "",
+  "notes": ""
+ },
+ "47": {
+  "ruleKey": "chop.allowWhenTargetHasOneCard",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D) + G3",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "",
+  "notes": ""
+ },
+ "48": {
+  "ruleKey": "chop.allowAfterFirstFinisher",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "104",
+  "notes": ""
+ },
+ "49": {
+  "ruleKey": "instantWin.fourTwos",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "62,124",
+  "notes": "check_instant_win sau chia"
+ },
+ "52": {
+  "ruleKey": "instantWin.sixPairs",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "CHƯA RÕ tứ quý =2 đôi? (Q-P1)",
+  "dependencies": "62,124",
+  "notes": ""
+ },
+ "53": {
+  "ruleKey": "instantWin.dragonStraight",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "CHƯA RÕ định nghĩa (Q-P0-4)",
+  "dependencies": "62,124",
+  "notes": "12 lá 3→A, không cần đồng chất (giả định)"
+ },
+ "58": {
+  "ruleKey": "redeal.fourThrees",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D, sửa 16:19)",
+  "status": "ĐÃ CHỐT; thứ tự với tới trắng: R7",
+  "dependencies": "Chỉ ván mở bằng 3♣ (7, 60)",
+  "notes": "detect_redeal"
+ },
+ "59": {
+  "ruleKey": "redeal.pairSeqWithThreeClubs",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D, sửa 16:19)",
+  "status": "ĐÃ CHỐT; thứ tự với tới trắng: R7",
+  "dependencies": "Chỉ ván mở bằng 3♣ (7, 60)",
+  "notes": "Có 33(gồm 3♣)-44-55"
+ },
+ "60": {
+  "ruleKey": "opening.threeClubsAfterInstantWin",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D, ID mới 16:19)",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "7,8,9,58,59",
+  "notes": "Ván sau tới trắng: mở bằng 3♣, có xét chia lại"
+ },
+ "62": {
+  "ruleKey": "instantWin.priorityOrder",
+  "class": "adminConfigurable",
+  "type": "ordered list",
+  "default": "[FOUR_TWOS, DRAGON, SIX_PAIRS]",
+  "defaultSource": "Ảnh luật §6 (N1)",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "Trùng 64",
+  "notes": "4 heo > sảnh 3→A > 6 đôi"
+ },
+ "63": {
+  "ruleKey": "instantWin.tieBreak",
+  "class": "adminConfigurable",
+  "type": "enum",
+  "default": "SPLIT_EQUALLY",
+  "defaultSource": "Ảnh luật §6 (N2)",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "62,124",
+  "notes": "Cùng loại → chia đều tiền"
+ },
+ "64": {
+  "ruleKey": "(→62) instantWin.priorityOrder",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo 62",
+  "defaultSource": "—",
+  "status": "Trùng 62",
+  "dependencies": "62",
+  "notes": "Gộp vào 62"
+ },
+ "65": {
+  "ruleKey": "(→124) scoring.instantWin",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo 124",
+  "defaultSource": "—",
+  "status": "Thiếu giá trị",
+  "dependencies": "124",
+  "notes": ""
+ },
+ "66": {
+  "ruleKey": "instantWin.endsImmediately",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "107",
+  "notes": ""
+ },
+ "67": {
+  "ruleKey": "instantWin.checkDuringPlay",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "false",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "66",
+  "notes": "Chỉ xét ngay sau chia"
+ },
+ "68": {
+  "ruleKey": "penalty.cong.enabled",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Duyệt D7, D11, D15",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "123,72-77",
+  "notes": "200 = khoản bét → nhất; dừng ngay; 1 cóng thì 2 người còn lại đánh tiếp"
+ },
+ "69": {
+  "ruleKey": "penalty.congAll (nhãn)",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "nhãn hiển thị",
+  "defaultSource": "Duyệt D7, D12, G11",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "68,123",
+  "notes": "Tính điểm như cóng thường: 3×200 + thối → nhất"
+ },
+ "70": {
+  "ruleKey": "(→123) cong reward to first",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "người về nhất nhận",
+  "defaultSource": "Duyệt D7",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "123",
+  "notes": ""
+ },
+ "71": {
+  "ruleKey": "(→123) cong penalty",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "200/người cóng",
+  "defaultSource": "Duyệt D7",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "123",
+  "notes": ""
+ },
+ "72": {
+  "ruleKey": "rot.blackTwo",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "100/lá",
+  "defaultSource": "Duyệt D8, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "117,85",
+  "notes": "Thối người cóng → nhất; bét thường → người về 3"
+ },
+ "73": {
+  "ruleKey": "rot.redTwo",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "200/lá",
+  "defaultSource": "Duyệt D8, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "118,85",
+  "notes": "Thối người cóng → nhất; bét thường → người về 3"
+ },
+ "74": {
+  "ruleKey": "(→72,73) rot.pairTwo",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "tổng 2 heo",
+  "defaultSource": "Duyệt D8, G11",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "72,73",
+  "notes": ""
+ },
+ "75": {
+  "ruleKey": "rot.fourKind",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "200",
+  "defaultSource": "Duyệt D8, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "85",
+  "notes": "Thối người cóng → nhất; bét thường → người về 3"
+ },
+ "76": {
+  "ruleKey": "rot.threePairSeq",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "200",
+  "defaultSource": "Duyệt D8, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "85",
+  "notes": "Thối người cóng → nhất; bét thường → người về 3"
+ },
+ "77": {
+  "ruleKey": "rot.fourPairSeq",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "200",
+  "defaultSource": "Duyệt D8, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "85",
+  "notes": "Thối người cóng → nhất; bét thường → người về 3; không tính trùng 3 đôi thông"
+ },
+ "80": {
+  "ruleKey": "scoring.rankPoints.enabled",
+  "class": "derivedRule",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (E: Theo hạng)",
+  "status": "Rõ",
+  "dependencies": "112-115",
+  "notes": ""
+ },
+ "81": {
+  "ruleKey": "chop.penaltyEnabled",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "119-122",
+  "notes": ""
+ },
+ "82": {
+  "ruleKey": "(→81) chop reward",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "đối xứng 81",
+  "defaultSource": "—",
+  "status": "Rõ",
+  "dependencies": "132,133",
+  "notes": ""
+ },
+ "83": {
+  "ruleKey": "chop.chainSettlement",
+  "class": "adminConfigurable",
+  "type": "enum",
+  "default": "CUMULATIVE",
+  "defaultSource": "Duyệt D3",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "41,119-121",
+  "notes": "Người bị chặt cuối trả toàn chuỗi khi vòng kết thúc"
+ },
+ "84": {
+  "ruleKey": "rot.applyWhenCong",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Duyệt D11, D12",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "68,69",
+  "notes": "Người cóng bị xét thối heo + hàng, trả cho nhất"
+ },
+ "85": {
+  "ruleKey": "rot.checkTiming",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "AT_GAME_END_LAST_PLACE",
+  "defaultSource": "Duyệt D8",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "104",
+  "notes": "Chỉ người về 4 (+ cóng toàn bàn)"
+ },
+ "87": {
+  "ruleKey": "forfeit.policy",
+  "class": "operationalPolicy",
+  "type": "enum",
+  "default": "LOWEST_FREE_RANK (4→3→…)",
+  "defaultSource": "Duyệt D9",
+  "status": "ĐÃ CHỐT; thối/cóng với người thoát: R6",
+  "dependencies": "145,144",
+  "notes": ""
+ },
+ "88": {
+  "ruleKey": "(→142) timeout.action",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "mất lượt",
+  "defaultSource": "Duyệt D9",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "142",
+  "notes": ""
+ },
+ "89": {
+  "ruleKey": "special.blindThreeSpades",
+  "class": "adminConfigurable",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Duyệt D10, D14",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "125",
+  "notes": "Về nhất + nước cuối là 3♠ đánh đơn → hết ván"
+ },
+ "90": {
+  "ruleKey": "(→125) blind reward",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo 125",
+  "defaultSource": "—",
+  "status": "Thiếu giá trị",
+  "dependencies": "125",
+  "notes": ""
+ },
+ "99": {
+  "ruleKey": "rank.first",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "100": {
+  "ruleKey": "rank.second",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "101": {
+  "ruleKey": "rank.third",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "102": {
+  "ruleKey": "rank.last",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "103": {
+  "ruleKey": "game.endMode",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "LAST_ONE_REMAINING",
+  "defaultSource": "Excel (E: Không) + G2",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "104",
+  "notes": ""
+ },
+ "104": {
+  "ruleKey": "game.endMode",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "LAST_ONE_REMAINING",
+  "defaultSource": "Excel (E: Có) + G2",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "103",
+  "notes": ""
+ },
+ "105": {
+  "ruleKey": "lead.afterFinisher",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "CATCH_CONTINUES_ELSE_NEXT_CLOCKWISE",
+  "defaultSource": "Duyệt D2",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "13,14,106",
+  "notes": "Không ai chặn → người còn bài kế tiếp theo chiều kim đồng hồ"
+ },
+ "106": {
+  "ruleKey": "turn.skipFinished",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "4",
+  "notes": ""
+ },
+ "107": {
+  "ruleKey": "instantWin.othersRanking",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "ALL_FOURTH",
+  "defaultSource": "Duyệt D4",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "124",
+  "notes": ""
+ },
+ "109": {
+  "ruleKey": "game.cancelPolicy",
+  "class": "operationalPolicy",
+  "type": "structured",
+  "default": "chỉ hệ thống/Admin; không tính điểm",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị (Q-P1)",
+  "dependencies": "",
+  "notes": ""
+ },
+ "111": {
+  "ruleKey": "session.initialScore",
+  "class": "fixedInvariant",
+  "type": "int",
+  "default": "0",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "133",
+  "notes": ""
+ },
+ "112": {
+  "ruleKey": "scoring.rank.first",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "200",
+  "defaultSource": "Excel (ví dụ)",
+  "status": "Chưa chốt",
+  "dependencies": "133: tổng 112-115 = 0",
+  "notes": ""
+ },
+ "113": {
+  "ruleKey": "scoring.rank.second",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "100",
+  "defaultSource": "Excel (ví dụ)",
+  "status": "Chưa chốt",
+  "dependencies": "133",
+  "notes": ""
+ },
+ "114": {
+  "ruleKey": "scoring.rank.third",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "-100",
+  "defaultSource": "Excel (ví dụ)",
+  "status": "Chưa chốt",
+  "dependencies": "133",
+  "notes": ""
+ },
+ "115": {
+  "ruleKey": "scoring.rank.last",
+  "class": "adminConfigurable",
+  "type": "int",
+  "default": "-200",
+  "defaultSource": "Excel (ví dụ)",
+  "status": "Chưa chốt",
+  "dependencies": "133",
+  "notes": ""
+ },
+ "117": {
+  "ruleKey": "scoring.blackTwoValue",
+  "class": "adminConfigurable",
+  "type": "int ≥0",
+  "default": "100",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "72,119-121",
+  "notes": ""
+ },
+ "118": {
+  "ruleKey": "scoring.redTwoValue",
+  "class": "adminConfigurable",
+  "type": "int ≥0",
+  "default": "200",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "73,119-121",
+  "notes": ""
+ },
+ "119": {
+  "ruleKey": "scoring.chop.fourKind",
+  "class": "adminConfigurable",
+  "type": "matrix",
+  "default": "xem bảng chặt §4",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ phần lớn",
+  "dependencies": "83,118",
+  "notes": ""
+ },
+ "120": {
+  "ruleKey": "scoring.chop.threePairSeq",
+  "class": "adminConfigurable",
+  "type": "matrix",
+  "default": "xem bảng chặt §4",
+  "defaultSource": "Excel (E)",
+  "status": "'chặt đè' chưa rõ (Q-P1)",
+  "dependencies": "83",
+  "notes": ""
+ },
+ "121": {
+  "ruleKey": "scoring.chop.fourPairSeq",
+  "class": "adminConfigurable",
+  "type": "matrix",
+  "default": "xem bảng chặt §4",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ phần lớn",
+  "dependencies": "83",
+  "notes": ""
+ },
+ "122": {
+  "ruleKey": "(→119-121) scoring.chop.matrix",
+  "class": "derivedRule",
+  "type": "—",
+  "default": "theo matrix",
+  "defaultSource": "—",
+  "status": "Thiếu giá trị",
+  "dependencies": "119-121",
+  "notes": ""
+ },
+ "123": {
+  "ruleKey": "scoring.congValue",
+  "class": "adminConfigurable",
+  "type": "int ≥0",
+  "default": "200",
+  "defaultSource": "Excel (E) + D7",
+  "status": "ĐÃ CHỐT → người về nhất",
+  "dependencies": "68-71",
+  "notes": ""
+ },
+ "124": {
+  "ruleKey": "scoring.instantWinPerLoser",
+  "class": "adminConfigurable",
+  "type": "int ≥0",
+  "default": "200 (×3 = 600)",
+  "defaultSource": "Duyệt D4",
+  "status": "ĐÃ CHỐT; không xét thối",
+  "dependencies": "65,107",
+  "notes": ""
+ },
+ "125": {
+  "ruleKey": "scoring.blindThreeSpadesPerLoser",
+  "class": "adminConfigurable",
+  "type": "int ≥0",
+  "default": "200 (×3 = 600)",
+  "defaultSource": "Duyệt D10",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "89",
+  "notes": ""
+ },
+ "127": {
+  "ruleKey": "scoring.allowNegative",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "Bắt buộc true nếu 133=true",
+  "notes": ""
+ },
+ "128": {
+  "ruleKey": "scoring.sessionLimit",
+  "class": "fixedInvariant",
+  "type": "nullable int",
+  "default": "null (không giới hạn)",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "129": {
+  "ruleKey": "session.resetOnStart",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Đề xuất",
+  "status": "Thiếu giá trị",
+  "dependencies": "111,148",
+  "notes": ""
+ },
+ "130": {
+  "ruleKey": "session.summaryByTotal",
+  "class": "operationalPolicy",
+  "type": "—",
+  "default": "xếp hạng theo tổng điểm",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "131": {
+  "ruleKey": "history.scoreLedger",
+  "class": "operationalPolicy",
+  "type": "—",
+  "default": "ledger từng ván",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "132": {
+  "ruleKey": "scoring.transferModel",
+  "class": "fixedInvariant",
+  "type": "enum",
+  "default": "PAIRWISE_TRANSFER",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "133",
+  "notes": ""
+ },
+ "133": {
+  "ruleKey": "scoring.zeroSum",
+  "class": "fixedInvariant",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "112-115 phải tổng 0",
+  "notes": "Property test"
+ },
+ "134": {
+  "ruleKey": "rules.editPermission",
+  "class": "operationalPolicy",
+  "type": "enum",
+  "default": "SYSTEM_ADMIN_ONLY",
+  "defaultSource": "YÊU CẦU MỚI (override Excel)",
+  "status": "OVERRIDE",
+  "dependencies": "Excel ghi 'chủ phòng' → SAI",
+  "notes": ""
+ },
+ "135": {
+  "ruleKey": "rules.scope",
+  "class": "operationalPolicy",
+  "type": "enum",
+  "default": "GLOBAL",
+  "defaultSource": "Yêu cầu",
+  "status": "OVERRIDE (diễn giải global)",
+  "dependencies": "",
+  "notes": ""
+ },
+ "136": {
+  "ruleKey": "rules.lockedDuringGame",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Yêu cầu",
+  "status": "Rõ",
+  "dependencies": "156",
+  "notes": ""
+ },
+ "137": {
+  "ruleKey": "rules.applyFromNextGame",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Yêu cầu",
+  "status": "Rõ",
+  "dependencies": "156",
+  "notes": "Thông báo version mới"
+ },
+ "138": {
+  "ruleKey": "rules.visibleToPlayers",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Yêu cầu",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": "Hiển thị version/hash"
+ },
+ "139": {
+  "ruleKey": "room.readyRequired",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "140": {
+  "ruleKey": "room.autoStartWhenAllReady",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "2",
+  "notes": ""
+ },
+ "141": {
+  "ruleKey": "turn.timeLimitSeconds",
+  "class": "adminConfigurable",
+  "type": "int 10-120",
+  "default": "30",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "10,13,142",
+  "notes": ""
+ },
+ "142": {
+  "ruleKey": "turn.timeoutAction",
+  "class": "adminConfigurable",
+  "type": "enum",
+  "default": "LOSE_TURN; leader: AUTO_PLAY_LOWEST_SINGLE",
+  "defaultSource": "Duyệt D9, D13",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "88,8",
+  "notes": "Ván mở 3♣: tự đánh 3♣"
+ },
+ "143": {
+  "ruleKey": "conn.reconnect",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "144",
+  "notes": "Private snapshot khi reconnect"
+ },
+ "144": {
+  "ruleKey": "conn.seatHoldSeconds",
+  "class": "adminConfigurable",
+  "type": "int 30-600",
+  "default": "120",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "143,145",
+  "notes": ""
+ },
+ "145": {
+  "ruleKey": "room.leaveMidGame",
+  "class": "operationalPolicy",
+  "type": "structured",
+  "default": "→87",
+  "defaultSource": "Duyệt D9",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "87",
+  "notes": ""
+ },
+ "146": {
+  "ruleKey": "room.replaceOnlyBetweenGames",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "147": {
+  "ruleKey": "room.ownerCanClose",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ (chỉ khi không có ván đang chơi?)",
+  "dependencies": "",
+  "notes": ""
+ },
+ "148": {
+  "ruleKey": "session.restart",
+  "class": "operationalPolicy",
+  "type": "structured",
+  "default": "chủ phòng, giữa các ván",
+  "defaultSource": "Đề xuất",
+  "status": "Ai được quyền? (Q-P2)",
+  "dependencies": "129",
+  "notes": ""
+ },
+ "149": {
+  "ruleKey": "history.gameLog",
+  "class": "operationalPolicy",
+  "type": "—",
+  "default": "deck seed/order, events, result",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "150": {
+  "ruleKey": "history.sessionLog",
+  "class": "operationalPolicy",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "151": {
+  "ruleKey": "security.serverAuthoritative",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "152": {
+  "ruleKey": "security.hideOpponentHands",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "—",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "154",
+  "notes": "Property test không lộ bài"
+ },
+ "153": {
+  "ruleKey": "security.serverShuffle",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "CSPRNG (secrets)",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "",
+  "notes": ""
+ },
+ "154": {
+  "ruleKey": "replay.enabled",
+  "class": "operationalPolicy",
+  "type": "bool",
+  "default": "true; lộ bài chỉ sau khi ván kết thúc",
+  "defaultSource": "Đề xuất",
+  "status": "Quyền xem (Q-P2)",
+  "dependencies": "152",
+  "notes": ""
+ },
+ "155": {
+  "ruleKey": "dispute.evidence",
+  "class": "operationalPolicy",
+  "type": "—",
+  "default": "events + rules snapshot hash",
+  "defaultSource": "Excel (D)",
+  "status": "Rõ",
+  "dependencies": "149,156",
+  "notes": ""
+ },
+ "156": {
+  "ruleKey": "rules.snapshotPerGame",
+  "class": "fixedInvariant",
+  "type": "—",
+  "default": "Mỗi ván",
+  "defaultSource": "Excel (E)",
+  "status": "Rõ",
+  "dependencies": "136,137",
+  "notes": ""
+ }
+}

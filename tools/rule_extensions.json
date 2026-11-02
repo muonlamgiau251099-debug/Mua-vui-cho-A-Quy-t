@@ -1,0 +1,17 @@
+[
+ {
+  "excelId": null,
+  "source": "rule-image-2026-10-30 §3.3",
+  "group": "Thưởng đặc biệt",
+  "name": "Bị nhốt 3♠",
+  "description": "Người về chót mà khi kết thúc vẫn còn đúng 1 lá 3♠ trên tay phải đền làng: trả cho mỗi người còn lại, cộng thêm tiền bét thông thường",
+  "ruleKey": "special.trappedThreeSpades",
+  "class": "adminConfigurable",
+  "type": "structured {enabled: bool, perPlayer: int 0..10000}",
+  "default": "enabled=true, perPlayer=200",
+  "defaultSource": "Ảnh luật §3.3 (N6)",
+  "status": "ĐÃ CHỐT",
+  "dependencies": "102, 115",
+  "notes": "Không có Excel ID; không tự tạo ID"
+ }
+]
