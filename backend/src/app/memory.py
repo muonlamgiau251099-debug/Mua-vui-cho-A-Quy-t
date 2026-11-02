@@ -29,7 +29,7 @@ from tlmn_engine.dealing import DealResult, next_opening, start_game
 from tlmn_engine.projection import project_private, project_public
 from tlmn_engine.reducer import Forfeit, Pass, Play, Timeout, apply
 from tlmn_engine.rules_config import RuleConfig, build_rules_snapshot, sha256_hex
-from tlmn_engine.state import Phase
+from tlmn_engine.state import EndType, Phase
 
 JST = ZoneInfo("Asia/Tokyo")
 MAX_PLAYERS = 20
@@ -328,6 +328,8 @@ class MemoryStore:
             endedAt=None,
             endReason=None,
             day=self.day,
+            last_winner=None,
+            last_end=None,
         )
         self.prune()
 
@@ -348,6 +350,9 @@ class MemoryStore:
                     session["games"].remove(key)
 
     async def start(self, room: Room):
+        await self.reset_if_due()
+        if room.id not in self.rooms:
+            return
         if (
             room.live
             or room.pending_reset
@@ -359,9 +364,9 @@ class MemoryStore:
         if session is None or session["status"] != "ACTIVE" or session["roster"] != roster:
             self.new_session(room)
             session = self.sessions[room.session_id]
-        previous = next((self.games[k] for k in reversed(session["games"]) if k in self.games), None)
-        winner = previous["winner"] if previous else None
-        end_type = previous["state"].end_type if previous else None
+        # Opening order must survive eviction of an older replay.
+        winner = session["last_winner"]
+        end_type = EndType(session["last_end"]) if session["last_end"] else None
         for _ in range(100):
             deck = self.deck_source()
             outcome = start_game(deck, next_opening(end_type, winner), self.rules, self.clock(), winner)
@@ -432,6 +437,8 @@ class MemoryStore:
         game["winner"] = next((n for n, p in enumerate(state.players) if p.rank == 1), None)
         session = self.sessions[game["session"]]
         if state.phase == Phase.FINISHED:
+            session["last_winner"] = game["winner"]
+            session["last_end"] = state.end_type.value if state.end_type else None
             session["count"] += 1
             session["totals"] = [a + b for a, b in zip(session["totals"], state.net(), strict=True)]
             game["cumulative"] = list(session["totals"])

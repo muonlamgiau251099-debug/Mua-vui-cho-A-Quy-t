@@ -231,3 +231,39 @@ def test_reset_does_not_purge_new_day_games():
     store.games["old"] = {"day": "2000-01-01"}
     store.purge_previous_day()
     assert list(store.games) == ["new"]
+
+
+@pytest.mark.asyncio
+async def test_replay_eviction_preserves_next_game_opening():
+    import random
+    from tlmn_engine.reducer import Pass, Play
+    from tlmn_engine.state import Phase
+
+    store = MemoryStore()
+    guests = [store.create_guest(f"Keep {i}")[0] for i in range(4)]
+    room = store.create_room(guests[0])
+    for g in guests[1:]:
+        store.join(room, g, None)
+    deck = list(range(52))
+    random.Random(42).shuffle(deck)
+    store.deck_source = lambda: deck
+    for seat in room.seats:
+        seat.connected = seat.ready = True
+    await store.start(room)
+    while room.live:
+        state = room.live["state"]
+        hand = state.players[state.current].hand
+        card = 1 if state.first_move_pending and 1 in hand else hand[0]
+        action = Pass(state.current) if state.trick.top else Play(state.current, (card,))
+        await store.after_action(room, await store.action(room, action))
+    session = store.sessions[room.session_id]
+    winner = session["last_winner"]
+    assert winner is not None
+    store.games.clear()  # old replay evicted, session score/opening information remains
+    session["games"].clear()
+    for seat in room.seats:
+        seat.ready = True
+    await store.start(room)
+    assert room.live["state"].phase == Phase.PLAYING
+    assert room.live["state"].opening_mode.value == "WINNER_LEADS"
+    assert room.live["state"].current == winner
