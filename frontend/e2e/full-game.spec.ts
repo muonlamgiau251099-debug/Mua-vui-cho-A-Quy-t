@@ -29,7 +29,7 @@ async function playUntilResult(page: Page) {
         const card = mustThreeClubs
           ? page.locator(".my-hand").getByRole("button", { name: "3♣", exact: true })
           : page.locator(".my-hand button.card").first();
-        await card.click();
+        await card.click({ position: { x: 8, y: 12 } });
         await page.getByRole("button", { name: /^Đánh/ }).click();
       }
       await page.waitForTimeout(250); // tốc độ người thật (server giới hạn 10 lệnh/giây)
@@ -69,10 +69,10 @@ test("4 người chơi trọn một ván trên trình duyệt, có người dùn
     await expect(page.locator(".my-hand button.card")).toHaveCount(13);
   }
 
-  await pages[0]!.locator(".my-hand button.card").nth(2).click(); // chọn thử 1 lá để thấy hiệu ứng
+  await pages[0]!.locator(".my-hand button.card").nth(2).click({ position: { x: 8, y: 12 } }); // chọn thử 1 lá để thấy hiệu ứng
   await shot(pages[0]!, "2-ban-choi-may-tinh");
   await shot(pages[3]!, "3-ban-choi-dien-thoai");
-  await pages[0]!.locator(".my-hand button.card").nth(2).click();
+  await pages[0]!.locator(".my-hand button.card").nth(2).click({ position: { x: 8, y: 12 } });
 
   // Điện thoại: không bị tràn ngang, nút thao tác nằm trong màn hình
   const phone = pages[3]!;
