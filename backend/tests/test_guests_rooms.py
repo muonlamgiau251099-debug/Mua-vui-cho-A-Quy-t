@@ -196,6 +196,28 @@ async def test_only_owner_can_close_room(client: httpx.AsyncClient) -> None:
     assert me["currentRoom"] is None  # ghế được giải phóng
 
 
+async def test_owner_kicks_player_and_seat_is_freed(client: httpx.AsyncClient) -> None:
+    owner = await new_guest(client, "Chủ")
+    room = await create_room(client, owner)
+    guest = await new_guest(client, "Khách")
+    other = await new_guest(client, "Khác")
+    url = f"/api/rooms/{room['roomId']}"
+    await client.post(f"{url}/join", json={"seatNo": 2}, headers=auth(guest))
+    await client.post(f"{url}/join", json={"seatNo": 3}, headers=auth(other))
+
+    denied = await client.post(f"{url}/kick", json={"seatNo": 3}, headers=auth(guest))
+    assert (denied.status_code, denied.json()["code"]) == (403, "NOT_OWNER")
+    self_kick = await client.post(f"{url}/kick", json={"seatNo": 0}, headers=auth(owner))
+    assert self_kick.json()["code"] == "CANNOT_KICK_SELF"
+    empty = await client.post(f"{url}/kick", json={"seatNo": 1}, headers=auth(owner))
+    assert (empty.status_code, empty.json()["code"]) == (404, "SEAT_EMPTY")
+
+    assert (await client.post(f"{url}/kick", json={"seatNo": 2}, headers=auth(owner))).status_code == 204
+    state = (await client.get(f"/api/rooms/by-code/{room['code']}")).json()
+    assert [s["occupied"] for s in state["seats"]] == [True, False, False, True]
+    assert (await client.get("/api/guests/me", headers=auth(guest))).json()["currentRoom"] is None
+
+
 async def test_room_creation_is_rate_limited(app: FastAPI, client: httpx.AsyncClient) -> None:
     app.state.room_create_limiter.limit = 1
     guest = await new_guest(client)

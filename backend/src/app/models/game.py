@@ -20,7 +20,7 @@ from app.db import Base
 
 
 class GameSession(Base):
-    """Phiên chơi: chuỗi ván với cùng 4 người (đổi người = phiên mới — Q-P1-10)."""
+    """Phiên chơi: chuỗi ván với cùng 3 hoặc 4 người (đổi người = phiên mới — Q-P1-10)."""
 
     __tablename__ = "game_sessions"
     __table_args__ = (
@@ -33,7 +33,7 @@ class GameSession(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=text("gen_random_uuid()"))
     room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rooms.id"))
     session_no: Mapped[int]
-    roster: Mapped[list[Any]]  # guestId (str) theo ghế 0–3
+    roster: Mapped[list[Any]]  # guestId (str) theo ghế 0–2 (ván 3 người) hoặc 0–3
     status: Mapped[str] = mapped_column(String(10), server_default=text("'ACTIVE'"))
     end_reason: Mapped[str | None] = mapped_column(String(30))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

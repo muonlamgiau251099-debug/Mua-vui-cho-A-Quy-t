@@ -34,9 +34,16 @@ def guest(client, name):
     return result, {"Authorization": f"Bearer {result['token']}"}
 
 
-def setup_players(client):
-    players = [guest(client, f"Test {i}") for i in range(4)]
+def setup_players(client, count=4):
+    players = [guest(client, f"Test {i}") for i in range(count)]
     room = client.post("/api/rooms", headers=players[0][1]).json()
+    if count == 3:
+        assert (
+            client.patch(
+                f"/api/rooms/{room['roomId']}/player-count", json={"playerCount": 3}, headers=players[0][1]
+            ).status_code
+            == 200
+        )
     for _player, headers in players[1:]:
         assert client.post(f"/api/rooms/{room['roomId']}/join", headers=headers, json={}).status_code == 200
     return players, room
@@ -47,7 +54,7 @@ def play_game(client, sockets):
     game_id = views[0]["payload"]["gameId"]
     # Only the recipient's hand is revealed; all four hands form a complete shuffled deck.
     hands = [v["payload"]["state"]["yourHand"] for v in views]
-    assert len({card for hand in hands for card in hand}) == 52
+    assert len({card for hand in hands for card in hand}) == 13 * len(sockets)
     assert all(len(hand) == 13 for hand in hands)
     assert all("hands" not in v["payload"]["state"] for v in views)
     for _ in range(600):
@@ -59,7 +66,10 @@ def play_game(client, sockets):
         if state["trick"]["top"] is not None:
             kind, payload = "game.pass", {}
         else:
-            card = 1 if state["firstMovePending"] and 1 in mine["yourHand"] else mine["yourHand"][0]
+            opening = state["openingCard"]
+            card = (
+                opening if state["firstMovePending"] and opening in mine["yourHand"] else mine["yourHand"][0]
+            )
             kind, payload = "game.play", {"cards": [card]}
         req = message(kind, payload, views[seat]["sequence"])
         sockets[seat].send_json(req)
@@ -78,14 +88,15 @@ def play_game(client, sockets):
     return game_id, results
 
 
-def test_four_websocket_players_complete_game_and_replay(tmp_path):
+@pytest.mark.parametrize("count", [3, 4])
+def test_websocket_players_complete_game_and_replay(tmp_path, count):
     (tmp_path / "index.html").write_text("<html>original SPA build</html>")
     store = MemoryStore()
     with TestClient(create_app(store, tmp_path)) as client, ExitStack() as stack:
         assert client.get("/").status_code == 200
         assert client.get("/r/ABCDEF").status_code == 200
         assert client.get("/.env").status_code == 404
-        players, room = setup_players(client)
+        players, room = setup_players(client, count)
         sockets = [
             stack.enter_context(client.websocket_connect(f"/ws/rooms/{room['roomId']}")) for _ in players
         ]
@@ -103,7 +114,7 @@ def test_four_websocket_players_complete_game_and_replay(tmp_path):
         assert len(client.get("/api/guests/me/sessions", headers=players[0][1]).json()["items"]) == 1
         _stranger, headers = guest(client, "Stranger")
         assert client.get(f"/api/games/{game_id}/replay", headers=headers).status_code == 404
-        assert client.get("/api/health").json()["seatedPlayers"] == 4
+        assert client.get("/api/health").json()["seatedPlayers"] == count
         assert "sqlalchemy" not in sys.modules  # runtime imports no DB layer
 
 
@@ -342,3 +353,34 @@ async def test_ram_dealing_after_blind_three_spades_opens_with_three_clubs():
     await store.start(room)
     assert room.live["state"].opening_mode.value == "THREE_CLUBS"
     assert room.live["state"].current == holder
+
+
+def test_owner_can_kick_and_resize_waiting_room():
+    with TestClient(create_app()) as client:
+        players, room = setup_players(client)
+        path = f"/api/rooms/{room['roomId']}"
+        owner = players[0][1]
+        member = players[1][1]
+        last_guest, last_headers = players[3]
+        assert (
+            client.patch(path + "/player-count", headers=member, json={"playerCount": 3}).status_code == 403
+        )
+        assert client.patch(path + "/player-count", headers=owner, json={"playerCount": 3}).status_code == 409
+        with client.websocket_connect(f"/ws/rooms/{room['roomId']}") as ws:
+            ws.send_json(message("auth", {"token": last_guest["token"]}))
+            receive(ws, "ack")
+            assert client.post(path + "/kick", headers=owner, json={"seatNo": 3}).status_code == 204
+            with pytest.raises(WebSocketDisconnect) as closed:
+                while True:
+                    ws.receive_json()
+            assert closed.value.code == 4002
+        assert (
+            client.patch(path + "/player-count", headers=owner, json={"playerCount": 3}).json()["playerCount"]
+            == 3
+        )
+        assert client.post(path + "/join", headers=last_headers, json={}).status_code == 409
+        assert (
+            client.patch(path + "/player-count", headers=owner, json={"playerCount": 4}).json()["playerCount"]
+            == 4
+        )
+        assert client.post(path + "/join", headers=last_headers, json={}).status_code == 200

@@ -4,9 +4,11 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from tlmn_engine.cards import THREE_CLUBS
 from tlmn_engine.combos import Combo
 
-SEATS = 4  # ID 2
+SEATS = 4  # ID 2: tối đa 4 người một ván (mặc định)
+PLAYER_COUNTS = (3, 4)  # yêu cầu mới: một ván có 3 hoặc 4 người chơi
 
 
 class Phase(StrEnum):
@@ -69,10 +71,17 @@ class Trick:
     top_is_chop: bool = False  # bài trên bàn là một nước chặt / hàng đè hàng
     passed: set[int] = field(default_factory=set)
     chain: list[ChopLink] = field(default_factory=list)
+    heo_carry: int = 0  # giá trị các heo đã bị heo khác đè trong vòng, chưa vào chuỗi chặt
 
     def clone(self) -> "Trick":
         return Trick(
-            self.leader, self.top, self.top_seat, self.top_is_chop, set(self.passed), list(self.chain)
+            self.leader,
+            self.top,
+            self.top_seat,
+            self.top_is_chop,
+            set(self.passed),
+            list(self.chain),
+            self.heo_carry,
         )
 
 
@@ -101,6 +110,8 @@ class GameState:
     finish_order: list[int] = field(default_factory=list)
     transfers: list[Transfer] = field(default_factory=list)
     seq: int = 0  # số action đã áp dụng
+    undealt: list[int] = field(default_factory=list)  # bài thừa không chia (ván 3 người: 13 lá), ẩn
+    opening_card: int = THREE_CLUBS  # lá người đánh đầu phải có (3♣; hoặc lá thay thế khi 3♣ không được chia)
 
     def clone(self) -> "GameState":
         return GameState(
@@ -116,6 +127,8 @@ class GameState:
             finish_order=list(self.finish_order),
             transfers=list(self.transfers),
             seq=self.seq,
+            undealt=list(self.undealt),
+            opening_card=self.opening_card,
         )
 
     def active_seats(self) -> list[int]:
@@ -125,17 +138,17 @@ class GameState:
         return any(p.status == PlayerStatus.FINISHED for p in self.players)
 
     def net(self) -> list[int]:
-        totals = [0] * SEATS
+        totals = [0] * len(self.players)
         for t in self.transfers:
             totals[t.from_seat] -= t.amount
             totals[t.to_seat] += t.amount
         return totals
 
 
-def clockwise_after(seat: int) -> list[int]:
-    """Ba ghế kế tiếp theo chiều kim đồng hồ (ID 4)."""
-    return [(seat + step) % SEATS for step in range(1, SEATS)]
+def clockwise_after(seat: int, players: int = SEATS) -> list[int]:
+    """Các ghế kế tiếp theo chiều kim đồng hồ (ID 4): 3 ghế với ván 4 người, 2 ghế với ván 3 người."""
+    return [(seat + step) % players for step in range(1, players)]
 
 
-def clockwise_from(seat: int) -> list[int]:
-    return [seat, *clockwise_after(seat)]
+def clockwise_from(seat: int, players: int = SEATS) -> list[int]:
+    return [seat, *clockwise_after(seat, players)]

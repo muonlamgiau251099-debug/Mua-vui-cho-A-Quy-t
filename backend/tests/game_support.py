@@ -92,17 +92,24 @@ def bearer(token: str) -> dict[str, str]:
 
 
 @contextmanager
-def started_table(ws_app: FastAPI, deck: list[int] = DECK) -> Iterator[Table]:
+def started_table(ws_app: FastAPI, deck: list[int] = DECK, players: int = 4) -> Iterator[Table]:
     ws_app.state.games.deck_source = lambda: list(deck)
     with TestClient(ws_app) as tc:
-        tokens = [tc.post("/api/guests", json={"nickname": f"P{n}"}).json()["token"] for n in range(4)]
+        tokens = [tc.post("/api/guests", json={"nickname": f"P{n}"}).json()["token"] for n in range(players)]
         room = tc.post("/api/rooms", headers=bearer(tokens[0])).json()
+        if players != 4:  # chủ phòng đổi phòng sang chế độ 3 người trước khi mọi người vào
+            changed = tc.patch(
+                f"/api/rooms/{room['roomId']}/player-count",
+                json={"playerCount": players},
+                headers=bearer(tokens[0]),
+            )
+            assert changed.status_code == 200, changed.text
         for token in tokens[1:]:
             tc.post(f"/api/rooms/{room['roomId']}/join", json={}, headers=bearer(token))
         table = Table(tc, ws_app, room["roomId"], room["code"], tokens)
         with table.stack:
-            table.sockets = [table.connect(seat) for seat in range(4)]
-            for seat in range(4):
+            table.sockets = [table.connect(seat) for seat in range(players)]
+            for seat in range(players):
                 table.send(seat, "room.ready", {"ready": True}, 0)
             # Server ack lệnh sẵn sàng trước rồi mới chia bài → chờ mọi người nhận game.started.
             table.started = [recv_until(ws, of_type("game.started")) for ws in table.sockets]
@@ -110,8 +117,8 @@ def started_table(ws_app: FastAPI, deck: list[int] = DECK) -> Iterator[Table]:
 
 
 def ready_all(table: Table) -> list[Msg]:
-    """Cả 4 bấm sẵn sàng ván tiếp; trả về game.started mỗi ghế nhận được."""
-    for seat in range(4):
+    """Mọi người trong phòng bấm sẵn sàng ván tiếp; trả về game.started mỗi ghế nhận được."""
+    for seat in range(len(table.sockets)):
         table.send(seat, "room.ready", {"ready": True}, 0)
     return [recv_until(ws, of_type("game.started")) for ws in table.sockets]
 

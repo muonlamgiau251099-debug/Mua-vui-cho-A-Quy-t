@@ -13,7 +13,9 @@ type Props = {
   onReady: (ready: boolean) => void;
   onLeave: () => void;
   onClose: () => void;
+  onKick?: (seat: SeatState) => void;
   onRestartSession?: () => void;
+  onChangePlayerCount?: (count: 3 | 4) => void; // chỉ chủ phòng: đổi phòng giữa 3 và 4 người
 };
 
 /** navigator.clipboard chỉ có trên HTTPS/localhost; mở qua IP LAN (HTTP) thì dùng cách cũ execCommand. */
@@ -47,6 +49,7 @@ function secondsLeft(iso: string | null, now: number): number | null {
 }
 
 const SEAT_POS = ["me", "left", "top", "right"] as const;
+const SEAT_POS_3 = ["me", "left", "right"] as const; // phòng 3 người: không có ghế đối diện
 
 type SeatCardProps = {
   seat: SeatState;
@@ -54,15 +57,32 @@ type SeatCardProps = {
   isOwner: boolean;
   isYou: boolean;
   now: number;
+  onKick?: () => void; // chỉ truyền khi bạn là chủ phòng và ghế này là người khác
 };
 
-function SeatCard({ seat, pos, isOwner, isYou, now }: SeatCardProps) {
+function SeatCard({ seat, pos, isOwner, isYou, now, onKick }: SeatCardProps) {
   const hold = secondsLeft(seat.holdUntil, now);
   const ready = seat.occupied && seat.connected && seat.ready;
   return (
     <li className={`seat-card pos-${pos}${isYou ? " you" : ""}${seat.occupied ? "" : " empty"}${ready ? " is-ready" : ""}`}>
-      <span className="avatar" aria-hidden="true">
-        {seat.occupied ? (seat.nickname ?? "?").charAt(0).toUpperCase() : "+"}
+      <span className="avatar-wrap">
+        <span className="avatar" aria-hidden="true">
+          {seat.occupied ? (seat.nickname ?? "?").charAt(0).toUpperCase() : "+"}
+        </span>
+        {seat.occupied && onKick && (
+          <button
+            type="button"
+            className="kick-btn"
+            aria-label={`Mời ${seat.nickname ?? "người chơi"} ra khỏi phòng`}
+            title="Mời ra khỏi phòng"
+            onClick={onKick}
+          >
+            {/* Vẽ bằng SVG để dấu × nằm đúng tâm (ký tự "×" lệch theo baseline của font) */}
+            <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+              <path d="M2 2 8 8M8 2 2 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </span>
       <div className="seat-title">
         Ghế {seat.seatNo + 1}
@@ -100,7 +120,9 @@ export function WaitingRoom({
   onReady,
   onLeave,
   onClose,
+  onKick,
   onRestartSession,
+  onChangePlayerCount,
 }: Props) {
   const compact = useMediaQuery(COMPACT_QUERY);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -130,7 +152,7 @@ export function WaitingRoom({
       <div className="waiting-table">
         <div className="room-info">
           <span className="room-count">
-            {occupied}/4 người · {readyCount} sẵn sàng
+            {occupied}/{room.seats.length} người · {readyCount} sẵn sàng
           </span>
           {room.rules && (
             <button type="button" className="link-btn rules-link" onClick={() => setRulesOpen(true)}>
@@ -144,9 +166,9 @@ export function WaitingRoom({
         </button>
 
         <ol className="seat-ring" aria-label="Các ghế trong phòng">
-          {SEAT_POS.map((pos, offset) => {
-            // Bạn luôn ngồi phía dưới; ghế kế tiếp bên trái, đối diện ở trên, ghế trước bên phải (giống bàn chơi).
-            const seat = room.seats[((yourSeat ?? 0) + offset) % 4]!;
+          {(room.seats.length === 3 ? SEAT_POS_3 : SEAT_POS).map((pos, offset) => {
+            // Bạn luôn ngồi phía dưới; ghế kế tiếp bên trái, (4 người: đối diện ở trên), ghế trước bên phải.
+            const seat = room.seats[((yourSeat ?? 0) + offset) % room.seats.length]!;
             return (
               <SeatCard
                 key={seat.seatNo}
@@ -155,6 +177,9 @@ export function WaitingRoom({
                 isOwner={seat.seatNo === room.ownerSeat}
                 isYou={seat.seatNo === yourSeat}
                 now={now}
+                onKick={
+                  isOwner && onKick && seat.occupied && seat.seatNo !== yourSeat ? () => onKick(seat) : undefined
+                }
               />
             );
           })}
@@ -187,7 +212,25 @@ export function WaitingRoom({
               Đã sao chép link mời
             </span>
           )}
-          {occupied < 4 && <p className="hint">Cần đủ 4 người — gửi mã hoặc link mời cho bạn bè.</p>}
+          {occupied < room.seats.length && (
+            <p className="hint">Cần đủ {room.seats.length} người — gửi mã hoặc link mời cho bạn bè.</p>
+          )}
+          {isOwner && onChangePlayerCount && (
+            <div className="player-count" role="group" aria-label="Số người chơi">
+              <span className="small">Số người</span>
+              {([3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={room.seats.length === n}
+                  disabled={room.seats.length === n}
+                  onClick={() => onChangePlayerCount(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="room-corner">

@@ -140,6 +140,11 @@ export function RoomPage() {
       ) : (
         <>
           {socket.lastError && <p className="error">{socket.lastError}</p>}
+          {joinError && seatedHere && (
+            <p role="alert" className="error">
+              {joinError}
+            </p>
+          )}
           <WaitingRoom
             room={room}
             yourSeat={yourSeat}
@@ -151,10 +156,18 @@ export function RoomPage() {
             onClose={() =>
               window.confirm("Đóng phòng? Mọi người sẽ bị đưa ra sảnh.") && void leaveToLobby(roomApi.close)
             }
+            onKick={(seat) => {
+              if (window.confirm(`Mời ${seat.nickname ?? "người chơi"} ra khỏi phòng?`)) {
+                roomApi.kick(room.roomId, seat.seatNo).catch((e: unknown) => setJoinError(errorMessage(e)));
+              }
+            }}
             onRestartSession={() => {
               if (window.confirm("Bắt đầu phiên mới? Điểm của mọi người sẽ về 0 (lịch sử phiên cũ vẫn được lưu).")) {
                 roomApi.restartSession(room.roomId).catch((e: unknown) => setJoinError(errorMessage(e)));
               }
+            }}
+            onChangePlayerCount={(count) => {
+              roomApi.setPlayerCount(room.roomId, count).catch((e: unknown) => setJoinError(errorMessage(e)));
             }}
           />
         </>

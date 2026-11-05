@@ -553,6 +553,36 @@ textarea:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.avatar-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* Nút mời ra: badge tròn ở góc trên bên phải avatar */
+.kick-btn {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+}
+
+.kick-btn svg {
+  display: block;
+}
+
+.kick-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
 .seat-status {
   font-size: 0.85em;
 }
@@ -1149,7 +1179,9 @@ button.card.selected {
 .game-table .my-hand {
   --cw: clamp(40px, 11vw, 56px); /* bề rộng 1 lá; 13 lá xòe luôn vừa khung nên không cần cuộn */
 
-  grid-area: hand;
+  /* Ôm đúng bề rộng các lá (n lá, lá cách nhau tối đa 8%, cộng các khoảng ngắt nhóm); hàng hẹp thì co lại, lá chồng nhiều hơn. */
+  flex: 0 1 calc(var(--cw) * (1 + (var(--n, 13) - 1) * 1.08) + var(--g, 0) * var(--ggap));
+  min-width: 0;
   container-type: inline-size; /* để tính độ giãn của các lá theo bề rộng khung (đơn vị cqw) */
   flex-wrap: nowrap;
   gap: 0;
@@ -1178,13 +1210,33 @@ button.card.selected {
 }
 
 .game-table .my-hand .card + .card {
-  /* Giãn đều theo bề rộng khung bài: lá thứ 2..13 cách nhau (khung - 1 lá) / 12, tối đa chồng 70%, tối thiểu hở 8%. */
-  margin-left: calc(var(--cw) * -0.4);
-  margin-left: clamp(
+  margin-left: calc(var(--cw) * -0.4); /* dự phòng cho trình duyệt chưa có đơn vị cqw */
+}
+
+/* Giãn đều theo bề rộng khung bài: các lá cách nhau (khung - 1 lá - các khoảng hở giữa nhóm) / (n - 1),
+   tối đa chồng 70%, tối thiểu hở 8%. --n = số lá, --g = số chỗ ngắt nhóm khi xếp theo bộ; --ggap = bề rộng mỗi chỗ ngắt. */
+.game-table .my-hand {
+  --ggap: 10px;
+  --m: clamp(
     calc(var(--cw) * -0.7),
-    calc((100cqw - var(--cw)) / 12 - var(--cw)),
+    calc((100cqw - var(--cw) - var(--g, 0) * var(--ggap)) / (var(--n, 13) - 1) - var(--cw)),
     calc(var(--cw) * 0.08)
   );
+}
+
+@supports (width: 1cqw) {
+  .game-table .my-hand .card + .card {
+    margin-left: var(--m);
+  }
+
+  /* Xếp theo bộ: chừa một khoảng trước lá đầu mỗi nhóm để thấy rõ ranh giới. */
+  .game-table .my-hand .card.group-start {
+    margin-left: calc(var(--m) + var(--ggap));
+  }
+}
+
+.game-table.compact .my-hand {
+  --ggap: 6px;
 }
 
 /* Vùng bấm kéo dài lên/xuống bằng đúng độ nhô của lá, để lá nhô lên không làm con trỏ "rớt" khỏi lá và nháy qua lại. */
@@ -2477,4 +2529,80 @@ a:focus-visible {
   .game-table.compact .trick-cards:is([data-n="8"], [data-n="9"], [data-n="10"], [data-n="11"], [data-n="12"]) {
     --tw: 30px;
   }
+}
+
+/* --- Hàng bài + nút ⇄ đổi cách xếp (bên phải hàng bài) --- */
+.hand-row {
+  --sort-gap: 0.5rem; /* màn hẹp: giữ hàng bài đủ rộng để vẫn thấy số và chất từng lá */
+
+  grid-area: hand;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--sort-gap) - 6px); /* trừ phần đệm 6px của khung bài: nút cách lá cuối đúng --sort-gap */
+  min-width: 0;
+}
+
+@media (min-width: 800px) {
+  .hand-row {
+    --sort-gap: 3rem; /* đủ chỗ: nút cách hàng bài khoảng 3rem */
+  }
+}
+
+.sort-toggle {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  min-height: 54px;
+  padding: 4px 2px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 30%);
+  line-height: 1.1;
+}
+
+.sort-toggle .sort-icon {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.sort-toggle .sort-mode {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Đang chờ giữa hai lần gửi: nút gửi hiện số giây còn lại, các câu có sẵn bị khóa nhưng vẫn nhập sẵn được. */
+.send-wait {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.chat-wait {
+  margin: 0;
+  color: var(--warn);
+}
+
+/* Chủ phòng chọn phòng 3 hay 4 người. */
+.player-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.player-count button {
+  min-width: 36px;
+  min-height: 32px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 30%);
+  font-weight: 700;
+}
+
+.player-count button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 1;
 }

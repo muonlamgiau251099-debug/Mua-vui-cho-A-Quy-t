@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 CLOSE_REPLACED = 4409  # guest mở kết nối mới ở tab/thiết bị khác
 CLOSE_ROOM_CLOSED = 4000
 CLOSE_LEFT_ROOM = 4001
+CLOSE_KICKED = 4002  # chủ phòng mời ra
 
 
 def envelope(

@@ -6,7 +6,7 @@ import { historyApi } from "../api/guest";
 import { cardLabel, comboLabel, isRed } from "../game/cards";
 import { describeEvent } from "../game/GameTable";
 
-// Xem lại ván từng bước (ID 154). Chỉ mở được sau khi ván kết thúc nên hiện bài cả 4 người.
+// Xem lại ván từng bước (ID 154). Chỉ mở được sau khi ván kết thúc nên hiện bài của mọi người chơi.
 export function ReplayPage() {
   const { gameId = "" } = useParams();
   const replay = useQuery({ queryKey: ["replay", gameId], queryFn: () => historyApi.replay(gameId) });

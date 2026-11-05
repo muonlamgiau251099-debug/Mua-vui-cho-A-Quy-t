@@ -6,8 +6,8 @@ Source được khôi phục từ ZIP gốc và cập nhật các bản sửa tr
 ## Chơi online
 
 - Nhập tên, không đăng ký tài khoản. Tạo phòng và chia sẻ mã 6 ký tự hoặc link `/r/MAPHONG`.
-- Mỗi phòng 4 ghế; tối đa 20 người đang ngồi trên toàn server. Ghế mất kết nối được giữ 120 giây.
-- Đủ 4 người kết nối và sẵn sàng thì chia bài. Server kiểm tra mọi nước đánh bằng engine gốc.
+- Mỗi phòng 3 hoặc 4 ghế; tối đa 20 người đang ngồi trên toàn server. Ghế mất kết nối được giữ 120 giây.
+- Đủ người theo số ghế đã chọn kết nối và sẵn sàng thì chia bài. Server kiểm tra mọi nước đánh bằng engine gốc.
 - HTTPS, REST và WebSocket cùng domain. Client tự chọn `wss://` khi trang dùng HTTPS.
 - 00:00 Asia/Tokyo: xóa phòng chờ và dữ liệu ngày cũ. Phòng đang chơi chốt ván rồi đóng/xóa; không bắt đầu ván mới ở phòng đó. Phòng tạo trong ngày mới không bị lần reset đang chờ ảnh hưởng.
 - Bộ cấu hình luật v1 được cố định; quy tắc mở ván sau đút mù 3♠ áp dụng bản sửa mới. API Admin/đăng nhập và chỉnh luật không được bật trong bản RAM public; mã PostgreSQL cũ còn lại trong repo chỉ để tham khảo, không được cài hay chép vào image production.

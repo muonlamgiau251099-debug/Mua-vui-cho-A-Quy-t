@@ -143,3 +143,20 @@ test("người cóng cũng nhận thông báo Bét; ván tới trắng thì khô
   other.rerender(<RankBanner game={null} result={white} seats={seats} />);
   expect(other.container.querySelector(".rank-banner")).toBeNull();
 });
+
+test("ván 3 người: người về hạng 3 (cuối) nhận thông báo Bét, người về nhì thì không", () => {
+  const result = ended(
+    "NORMAL",
+    [
+      [1, "FINISHED"],
+      [2, "FINISHED"],
+      [3, "FINISHED"],
+    ],
+    [300, -100, -200],
+  );
+  const { rerender } = render(<RankBanner game={null} result={null} seats={seats} />);
+  rerender(<RankBanner game={null} result={result} seats={seats} />);
+  expect(screen.getByText("HƠI ĐEN!")).toBeInTheDocument();
+  expect(screen.getByText("Minh")).toBeInTheDocument(); // ghế 2 về cuối
+  expect(screen.queryByText("Huy")).not.toBeInTheDocument(); // ghế 1 về nhì: không có thông báo ở cuối ván
+});

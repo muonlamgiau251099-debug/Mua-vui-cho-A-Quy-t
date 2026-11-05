@@ -13,6 +13,7 @@ type Envelope = { type: string; requestId?: string | null; sequence?: number | n
 const FINAL_CLOSE: Record<number, string> = {
   4000: "Phòng đã đóng.",
   4001: "Bạn đã rời phòng.",
+  4002: "Bạn đã bị chủ phòng mời ra khỏi phòng.",
   4401: "Phiên chơi không hợp lệ, hãy nhập tên lại.",
   // 4408 (hết thời gian xác thực) không nằm ở đây: client tự kết nối lại.
   4403: "Bạn không còn ghế trong phòng này.",
@@ -82,7 +83,7 @@ export function useRoomSocket(roomId: string | null, token: string | null) {
           setRoom((prev) => newerState(prev, p as unknown as RoomState));
           break;
         case "room.allReady":
-          setNotice("Đủ 4 người sẵn sàng — đang chia bài!");
+          setNotice("Đủ người sẵn sàng — đang chia bài!");
           break;
         case "game.started":
         case "game.update":

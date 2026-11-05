@@ -29,7 +29,7 @@ CHAT_PHRASES: frozenset[str] = frozenset(
     }
 )
 CHAT_MAX_LENGTH = 60  # ký tự (code point) của chữ tự do
-CHAT_COOLDOWN_SECONDS = 10.0
+CHAT_COOLDOWN_SECONDS = 4.0
 _MAX_TRACKED = 2000
 _ZWJ = chr(0x200D)  # zero-width joiner: giữ lại để emoji ghép không bị vỡ
 

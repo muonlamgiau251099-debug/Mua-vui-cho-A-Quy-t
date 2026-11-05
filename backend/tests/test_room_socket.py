@@ -268,6 +268,19 @@ def test_leaving_by_rest_disconnects_that_player_socket(
         recv_until(watcher, lambda m: m["type"] == "room.state" and not m["payload"]["seats"][2]["occupied"])
 
 
+def test_owner_kick_disconnects_kicked_player_socket(
+    tc: TestClient, full_room: tuple[str, list[str]]
+) -> None:
+    room_id, tokens = full_room
+    with connected(tc, room_id, tokens[0]) as owner, connected(tc, room_id, tokens[2]) as kicked:
+        response = tc.post(f"/api/rooms/{room_id}/kick", json={"seatNo": 2}, headers=bearer(tokens[0]))
+        assert response.status_code == 204
+        with pytest.raises(WebSocketDisconnect) as exc:
+            recv_until(kicked, lambda m: False)
+        assert exc.value.code == 4002
+        recv_until(owner, lambda m: m["type"] == "room.state" and not m["payload"]["seats"][2]["occupied"])
+
+
 @pytest.mark.rule(137)
 def test_publishing_rules_notifies_open_rooms(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
     room_id, tokens = full_room
@@ -291,6 +304,19 @@ def test_publishing_rules_notifies_open_rooms(tc: TestClient, full_room: tuple[s
 
 
 # --- Chat nhanh bằng câu có sẵn ---
+
+
+def test_chat_cooldown_default_is_four_seconds() -> None:
+    from app.realtime.chat import CHAT_COOLDOWN_SECONDS, ChatCooldown
+
+    assert CHAT_COOLDOWN_SECONDS == 4.0
+    now = [0.0]
+    default = ChatCooldown(clock=lambda: now[0])
+    assert default.check("a") == 0.0
+    now[0] = 3.9
+    assert default.check("a") == pytest.approx(0.1)  # chưa đủ 4 giây
+    now[0] = 4.0
+    assert default.check("a") == 0.0
 
 
 def test_chat_cooldown_unit() -> None:
@@ -349,7 +375,7 @@ def test_chat_new_preset_phrases_are_accepted(tc: TestClient, full_room: tuple[s
 
 def test_free_text_chat_is_cleaned_and_broadcast(tc: TestClient, full_room: tuple[str, list[str]]) -> None:
     room_id, tokens = full_room
-    messy = "  Cho\te  đánh\nlại   được không \202e\u0007 "  # tab, xuống dòng, đảo chiều chữ, ký tự chuông
+    messy = "  Cho\te  đánh\nlại   được không \u202e\u0007 "  # tab, xuống dòng, đảo chiều chữ, ký tự chuông
     with connected(tc, room_id, tokens[2]) as sender, connected(tc, room_id, tokens[0]) as other:
         sender.send_json({"type": "chat.send", "requestId": rid(), "payload": {"text": messy}})
         for ws in (sender, other):
@@ -364,7 +390,7 @@ def test_free_text_chat_validation(tc: TestClient, full_room: tuple[str, list[st
     bad_payloads: list[dict[str, object]] = [
         {"text": ""},
         {"text": "   \n\t "},  # chỉ có khoảng trắng
-        {"text": "\202e\u0007"},  # chỉ có ký tự điều khiển
+        {"text": "\u202e\u0007"},  # chỉ có ký tự điều khiển
         {"text": "a" * (CHAT_MAX_LENGTH + 1)},  # quá dài
         {"text": 123},
         {"text": "xin chào", "phrase": "think"},  # gửi cả hai

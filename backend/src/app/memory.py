@@ -209,9 +209,11 @@ class MemoryStore:
         self.available(guest)
         if room.pending_reset or room.live:
             raise AppError(409, "GAME_IN_PROGRESS", "Phòng đang chơi; hãy đợi ván kết thúc")
+        if seat_no is not None and not 0 <= seat_no < len(room.seats):
+            raise AppError(404, "SEAT_NOT_FOUND", "Phòng không có ghế này")
         free = [n for n, s in enumerate(room.seats) if s.guest is None]
         if not free:
-            raise AppError(409, "ROOM_FULL", "Phòng đã đủ 4 người")
+            raise AppError(409, "ROOM_FULL", f"Phòng đã đủ {len(room.seats)} người")
         seat_no = free[0] if seat_no is None else seat_no
         if seat_no not in free:
             raise AppError(409, "SEAT_TAKEN", "Ghế này đã có người")
@@ -227,7 +229,10 @@ class MemoryStore:
             sessionId=session["id"],
             sessionNo=session["no"],
             gamesPlayed=session["count"],
-            scores=[dict(seat=i, nickname=session["names"][i], total=session["totals"][i]) for i in range(4)],
+            scores=[
+                dict(seat=i, nickname=session["names"][i], total=session["totals"][i])
+                for i in range(len(session["names"]))
+            ],
         )
 
     def room_state(self, room: Room, seat_no=None) -> dict:
@@ -250,6 +255,7 @@ class MemoryStore:
                 )
                 for i, s in enumerate(room.seats)
             ],
+            playerCount=len(room.seats),
             allReady=all(s.ready and s.connected for s in room.seats),
             yourSeat=seat_no,
             session=self.summary(room),
@@ -320,7 +326,7 @@ class MemoryStore:
             no=room.session_no,
             roster=[s.guest for s in room.seats],
             names=[names.get(s.guest) for s in room.seats],
-            totals=[0] * 4,
+            totals=[0] * len(room.seats),
             count=0,
             games=[],
             status="ACTIVE",
@@ -369,7 +375,14 @@ class MemoryStore:
         end_type = EndType(session["last_end"]) if session["last_end"] else None
         for _ in range(100):
             deck = self.deck_source()
-            outcome = start_game(deck, next_opening(end_type, winner), self.rules, self.clock(), winner)
+            outcome = start_game(
+                deck,
+                next_opening(end_type, winner),
+                self.rules,
+                self.clock(),
+                winner,
+                players=len(room.seats),
+            )
             if outcome.result != DealResult.REDEAL:
                 break
         else:
@@ -479,7 +492,7 @@ class MemoryStore:
         if session:
             session.update(status="ENDED", endedAt=now_iso(), endReason=reason)
 
-    async def release(self, room: Room, seat_no: int):
+    async def release(self, room: Room, seat_no: int, close_code: int = 4001):
         guest_id = room.seats[seat_no].guest
         if (
             room.live
@@ -493,15 +506,15 @@ class MemoryStore:
         ws = room.conns.pop(guest_id, None)
         if ws:
             with contextlib.suppress(Exception):
-                await asyncio.wait_for(ws.close(code=4001), 0.5)
+                await asyncio.wait_for(ws.close(code=close_code), 0.5)
         room.seats[seat_no] = Seat()
         room.version += 1
         if room.owner == guest_id:
             room.owner = next(
                 (
-                    room.seats[(seat_no + i) % 4].guest
-                    for i in range(1, 4)
-                    if room.seats[(seat_no + i) % 4].guest
+                    room.seats[(seat_no + i) % len(room.seats)].guest
+                    for i in range(1, len(room.seats))
+                    if room.seats[(seat_no + i) % len(room.seats)].guest
                 ),
                 "",
             )
@@ -639,7 +652,7 @@ class MemoryStore:
                         )
                     chat = {"text": text}
                 if room.chat.check(guest.id) > 0:
-                    raise AppError(429, "CHAT_COOLDOWN", "Chờ 10 giây giữa các câu chat")
+                    raise AppError(429, "CHAT_COOLDOWN", "Chờ 4 giây giữa các câu chat")
                 await self.broadcast(room, "chat.message", dict(seat=seat, **chat))
                 response = envelope("ack", {"type": kind}, room.id, request_id=req)
             else:
@@ -663,7 +676,7 @@ class MemoryStore:
                 total=session["totals"][i],
                 gamesCounted=session["count"],
             )
-            for i in range(4)
+            for i in range(len(session["names"]))
         ]
         standings.sort(key=lambda r: (-r["total"], r["seat"]))
         for place, row in enumerate(standings, 1):

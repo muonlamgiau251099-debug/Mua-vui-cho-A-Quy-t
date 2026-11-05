@@ -29,6 +29,14 @@ class NicknameBody(BaseModel):
     nickname: str = Field(max_length=60)
 
 
+class PlayerCountBody(BaseModel):
+    playerCount: int = Field(ge=3, le=4)
+
+
+class KickBody(BaseModel):
+    seatNo: int = Field(ge=0, le=3)
+
+
 class JoinBody(BaseModel):
     seatNo: int | None = Field(default=None, ge=0, le=3)
 
@@ -217,6 +225,50 @@ def create_app(store: MemoryStore | None = None, static_dir: str | Path | None =
             guest = auth(request)
             room = store.get_room(str(room_id))
             await store.release(room, store.member(room, guest))
+        return Response(status_code=204)
+
+    @app.patch("/api/rooms/{room_id}/player-count")
+    async def set_player_count(room_id: uuid.UUID, body: PlayerCountBody, request: Request):
+        from app.memory import Seat
+
+        async with store.lock:
+            guest = auth(request)
+            room = store.get_room(str(room_id))
+            if room.owner != guest.id:
+                raise AppError(403, "NOT_OWNER", "Chỉ chủ phòng được đổi số người chơi")
+            if room.live or room.pending_reset:
+                raise AppError(409, "GAME_IN_PROGRESS", "Chỉ đổi số người chơi khi phòng đang chờ")
+            count = body.playerCount
+            if count != len(room.seats):
+                if count < len(room.seats):
+                    if room.seats[-1].guest is not None:
+                        raise AppError(409, "SEAT_OCCUPIED", "Hãy mời người ở ghế cuối ra trước")
+                    room.seats.pop()
+                else:
+                    room.seats.append(Seat())
+                for seat in room.seats:
+                    seat.ready = False
+                room.version += 1
+                await store.broadcast_state(room)
+            return dict(roomId=room.id, playerCount=count)
+
+    @app.post("/api/rooms/{room_id}/kick", status_code=204)
+    async def kick(room_id: uuid.UUID, body: KickBody, request: Request):
+        async with store.lock:
+            guest = auth(request)
+            room = store.get_room(str(room_id))
+            if room.owner != guest.id:
+                raise AppError(403, "NOT_OWNER", "Chỉ chủ phòng được mời người chơi ra")
+            if room.live or room.pending_reset:
+                raise AppError(409, "GAME_IN_PROGRESS", "Chỉ mời người chơi ra khi phòng đang chờ")
+            if body.seatNo >= len(room.seats):
+                raise AppError(404, "SEAT_NOT_FOUND", "Phòng không có ghế này")
+            target = room.seats[body.seatNo].guest
+            if target is None:
+                raise AppError(404, "SEAT_EMPTY", "Ghế này đang trống")
+            if target == guest.id:
+                raise AppError(409, "CANNOT_KICK_SELF", "Hãy dùng Rời phòng")
+            await store.release(room, body.seatNo, close_code=4002)
         return Response(status_code=204)
 
     @app.post("/api/rooms/{room_id}/close", status_code=204)

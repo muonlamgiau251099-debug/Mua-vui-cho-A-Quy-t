@@ -9,13 +9,6 @@ export const isRed = (card: number) => suitOf(card) >= 2;
 export const cardLabel = (card: number) => `${RANKS[rankOf(card)]}${SUITS[suitOf(card)]}`;
 export const cardsLabel = (cards: number[]) => [...cards].sort((a, b) => a - b).map(cardLabel).join(" ");
 
-export type SortMode = "rank" | "suit";
-
-export function sortHand(cards: number[], mode: SortMode): number[] {
-  const copy = [...cards];
-  return mode === "rank" ? copy.sort((a, b) => a - b) : copy.sort((a, b) => suitOf(a) - suitOf(b) || a - b);
-}
-
 const COMBO_LABEL: Record<string, string> = {
   SINGLE: "Rác",
   PAIR: "Đôi",
@@ -46,6 +39,7 @@ const ERROR_LABEL: Record<string, string> = {
   CANNOT_BEAT: "Bài chưa đủ lớn để chặn",
   INVALID_COMBINATION: "Bộ bài không hợp lệ",
   MUST_INCLUDE_THREE_CLUBS: "Nước đầu phải có 3♣",
+  MUST_INCLUDE_OPENING_CARD: "Nước đầu phải có lá mở ván (xem trên bàn)",
   LEADER_CANNOT_PASS: "Bạn đang mở vòng, không được bỏ lượt",
   STALE_STATE: "Bàn vừa thay đổi, hãy thử lại",
 };

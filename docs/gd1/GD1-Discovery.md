@@ -91,8 +91,9 @@ Ví dụ: chỉ D bị cóng, D đang giữ 2♠, 2♥ và một tứ quý 7 →
 
 **Chặt chồng cộng dồn (D3), ví dụ:** A đánh 2♥ → B chặt bằng 3 đôi thông → C chặt bằng tứ quý → không ai chặn tiếp.
 Kết quả: B trả C 200 + 200 = **400**; A không mất điểm. Điểm chỉ chốt **khi vòng kết thúc**; mỗi lần chặt vẫn được ghi event riêng để đối soát.
+Thêm D bằng 4 đôi thông chặt tứ quý của C → C trả D 200 + 200 + 400 = **800**.
 
-[Giả định] Không cho phép: 3 đôi thông chặt đôi heo hoặc tứ quý; tứ quý chặt 4 đôi thông. Heo đè heo nhỏ hơn = đè thường, không tính điểm chặt.
+[Giả định] Không cho phép: 3 đôi thông chặt đôi heo hoặc tứ quý; tứ quý chặt 4 đôi thông. Heo đè heo nhỏ hơn = đè thường, không tính điểm chặt; nhưng khi chồng heo đó bị chặt thì **ăn tất cả heo** trong chồng (yêu cầu 2026-11-04). Ví dụ A 2♠ → B 2♥ → C chặt 3 đôi thông → B trả C 100 + 200 = **300**.
 
 ---
 
@@ -178,3 +179,24 @@ Kết quả: B trả C 200 + 200 = **400**; A không mất điểm. Điểm ch�
 Khi được duyệt, tôi chuyển sang **GĐ2 Design**: ADR kiến trúc, ERD, RuleConfig schema + mapping Excel, state machine, API/WebSocket, scoring ledger, recovery, wireframe, security, test matrix — rồi dừng xin duyệt tiếp.
 
 **Tôi dừng ở đây chờ duyệt. Chưa có thiết kế chi tiết và chưa có dòng code nào.**
+
+## 9. Cập nhật yêu cầu: chơi 3 người (2026-11)
+
+Yêu cầu mới ghi đè ID 2 ("đúng 4 người") theo thứ tự ưu tiên *yêu cầu mới nhất > quyết định đã duyệt > Excel*. Các quyết định dưới đây do
+đội phát triển tự chọn để ít ảnh hưởng nhất tới luật hiện có; cần xác nhận nếu muốn khác.
+
+| # | Quyết định | Ghi chú |
+|---|---|---|
+| T1 | Phòng chơi **3 hoặc 4 người**. Không hỗ trợ 2 người (luật chặt, hưởng sái, thối viết cho nhiều người chơi). | Chủ phòng đổi 3/4 trong phòng chờ (`PATCH /api/rooms/{id}/player-count`); 4 → 3 chỉ khi ghế cuối trống. |
+| T2 | Ván 3 người chia **39 lá** (13 lá mỗi người), **13 lá thừa không chia** và không ai thấy. | Vẫn đủ 52 lá (bất biến kiểm tra cả bài thừa); lộ cùng bộ bài ở cuối ván để đối chiếu. |
+| T3 | **Điểm hạng 3 người: nhất +300, nhì −100, ba −200.** Cài đặt bằng các khoản chuyển: ba → nhất `scoring.rank.first` (200), nhì → nhất `scoring.rank.second` (100). | Không thêm cấu hình mới; Admin chỉnh bằng đúng hai giá trị đó. Vẫn zero-sum. |
+| T4 | Cóng, tới trắng, đút mù: giữ nguyên mức tiền **mỗi người thua trả** (200); 3 người thì có 2 người thua. | Zero-sum tự nhiên vì chỉ là chuyển điểm. |
+| T5 | Thối của người bét chuyển cho người xếp ngay trên bét (hạng 3 khi 4 người, **hạng 2 khi 3 người**) nếu họ hết bài bình thường, không thì cho người nhất. | Khái quát từ D8/D12/G10. |
+
+### Người đánh đầu (bổ sung ID 7, 8, 9)
+- Người giữ **3♣** đánh đầu, nước đầu phải chứa 3♣ (giữ nguyên).
+- Nếu **không ai** được chia 3♣ (có thể xảy ra ở ván 3 người): lấy lá **nhỏ nhất trong các lá đã chia, loại 3♠**; người giữ lá đó đánh đầu và nước đầu phải chứa lá đó.
+  3♠ **không bao giờ** được dùng để xác định quyền đánh đầu; chỉ loại 3♠ khỏi bước này, 3♠ vẫn là lá bình thường ở mọi luật khác (kể cả đút mù, tới trắng, bị nhốt 3♠).
+- Ván sau: người thắng ván trước đánh đầu nếu còn tham gia; nếu họ vắng mặt (danh sách người chơi đổi → phiên mới) thì xác định lại bằng quy tắc trên.
+- Server là nơi quyết định và kiểm tra: lá bắt buộc được gửi trong `state.openingCard`, nước đi sai bị từ chối (`MUST_INCLUDE_OPENING_CARD`; với 3♣ vẫn là `MUST_INCLUDE_THREE_CLUBS`), hết giờ ở nước đầu tự đánh đúng lá bắt buộc. Luôn có người đánh đầu nên ván không bao giờ bị kẹt.
+- Vẫn tuân theo công tắc Admin `opening.mustIncludeThreeClubs` (tắt thì không bắt buộc lá nào).

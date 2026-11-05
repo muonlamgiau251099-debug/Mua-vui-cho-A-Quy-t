@@ -201,7 +201,7 @@ async def session_detail(s: AsyncSession, guest_id: uuid.UUID, session_id: uuid.
             {"from": t.from_seat, "to": t.to_seat, "amount": t.amount, "reason": t.reason, "detail": t.detail}
         )
 
-    cumulative = [0, 0, 0, 0]
+    cumulative = [0] * len(session.roster)
     game_rows = []
     for g in games:
         result = results.get(g.id)

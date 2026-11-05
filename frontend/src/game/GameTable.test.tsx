@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import type { SeatState } from "../api/guest";
 import { newerGame } from "../realtime/useRoomSocket";
-import { cardLabel, cardsLabel, insertionIndex, moveCard, sortHand } from "./cards";
+import { cardLabel, cardsLabel, insertionIndex, moveCard } from "./cards";
 import { CHAT_MAX_LENGTH, cleanChatText } from "./chat";
 import { GameResultPanel } from "./GameResultPanel";
 import { describeEvent, GameTable, specialPlayLabel } from "./GameTable";
@@ -45,10 +45,9 @@ const live = (state: GameView, sequence = 0): LiveGame => ({
   events: [],
 });
 
-test("nhãn lá bài và sắp xếp theo số / chất", () => {
+test("nhãn lá bài", () => {
   expect([1, 30, 51].map(cardLabel)).toEqual(["3♣", "10♦", "2♥"]);
   expect(cardsLabel([51, 1])).toBe("3♣ 2♥");
-  expect(sortHand([51, 1, 4], "suit")).toEqual([4, 1, 51]); // ♠ trước ♣ trước ♥
 });
 
 test("người mở vòng thấy bài của mình, không bỏ lượt được, chọn lá rồi đánh", () => {
@@ -199,7 +198,7 @@ test("chat: bấm nút Chat mở card kéo lên với ô nhập, nút gửi (ico
   }
 });
 
-test("chat: chọn câu có sẵn thì gửi mã câu, đóng card và khóa nút trong 10 giây", () => {
+test("chat: chọn câu có sẵn thì gửi mã câu và đóng card; nút chat vẫn bấm được trong lúc chờ 4 giây", () => {
   vi.useFakeTimers();
   const onChat = vi.fn(() => true);
   render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
@@ -207,11 +206,42 @@ test("chat: chọn câu có sẵn thì gửi mã câu, đóng card và khóa nú
   fireEvent.click(within(chatSheet()).getByRole("button", { name: "Lẹ lên cha" }));
   expect(onChat).toHaveBeenCalledWith({ phrase: "hurry" });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "💬 10s" })).toBeDisabled();
-  act(() => void vi.advanceTimersByTime(10_500));
-  expect(screen.getByRole("button", { name: "💬 Chat" })).toBeEnabled();
+  // Đang chờ: nút chat hiện số giây còn lại nhưng KHÔNG bị khóa, vẫn mở được card.
+  expect(screen.getByRole("button", { name: "💬 4s" })).toBeEnabled();
   vi.useRealTimers();
 });
+
+test("chat: trong lúc chờ vẫn nhập sẵn được; nút gửi và câu có sẵn khóa tới đủ 4 giây rồi mới gửi", () => {
+  vi.useFakeTimers();
+  const onChat = vi.fn(() => true);
+  render(<GameTable game={live(view())} {...chatProps} onChat={onChat} />);
+  openChat();
+  fireEvent.click(within(chatSheet()).getByRole("button", { name: "Toang rồi" })); // gửi lần 1
+  expect(onChat).toHaveBeenCalledTimes(1);
+
+  act(() => void vi.advanceTimersByTime(1_000)); // còn khoảng 3 giây
+  fireEvent.click(screen.getByRole("button", { name: /💬/ })); // mở lại card ngay trong lúc chờ
+  const sheet = chatSheet();
+  const input = within(sheet).getByRole("textbox", { name: "Tin nhắn" });
+  expect(input).toBeEnabled();
+  fireEvent.change(input, { target: { value: "Cho e đánh lại" } }); // nhập sẵn
+  expect(input).toHaveValue("Cho e đánh lại");
+  expect(within(sheet).getByRole("button", { name: "Gửi" })).toBeDisabled();
+  expect(within(sheet).getByRole("button", { name: "Lẹ lên cha" })).toBeDisabled(); // câu có sẵn cũng khóa
+  expect(within(sheet).getByRole("status")).toHaveTextContent(/Chờ \d giây/);
+  fireEvent.submit(input.closest("form")!); // Enter trong lúc chờ: không gửi, giữ nguyên chữ
+  expect(onChat).toHaveBeenCalledTimes(1);
+  expect(input).toHaveValue("Cho e đánh lại");
+
+  act(() => void vi.advanceTimersByTime(3_200)); // đủ 4 giây kể từ lần gửi trước
+  expect(within(chatSheet()).getByRole("button", { name: "Gửi" })).toBeEnabled();
+  expect(within(chatSheet()).getByRole("button", { name: "Lẹ lên cha" })).toBeEnabled();
+  fireEvent.click(within(chatSheet()).getByRole("button", { name: "Gửi" }));
+  expect(onChat).toHaveBeenCalledTimes(2);
+  expect(onChat).toHaveBeenLastCalledWith({ text: "Cho e đánh lại" });
+  vi.useRealTimers();
+});
+
 
 test("chat: nhập chữ tự do rồi bấm Gửi (hoặc Enter) → gửi chữ đã làm sạch", () => {
   const onChat = vi.fn(() => true);
@@ -380,7 +410,13 @@ test("kéo nhẹ (dưới 6px) vẫn chỉ là một cú bấm để chọn lá"
   expect(first).toHaveAttribute("aria-pressed", "true");
 });
 
-test("bấm 'Xếp theo ...' sau khi tự xếp thì quay về tự xếp", () => {
+const RANKS_FOR_TEST = ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"];
+const SUITS_FOR_TEST = ["♠", "♣", "♦", "♥"];
+const sortToggle = () => screen.getByRole("button", { name: /Đổi cách xếp bài/ });
+const handWith = (labels: string[]) =>
+  live(view({ yourHand: labels.map((l) => RANKS_FOR_TEST.indexOf(l.slice(0, -1)) * 4 + SUITS_FOR_TEST.indexOf(l.slice(-1))) }));
+
+test("bấm ⇄ sau khi tự kéo thả thì bỏ thứ tự tự xếp và xếp lại theo chế độ mới", () => {
   const { container } = render(<GameTable game={live(view())} {...baseProps} />);
   stubCardRects(container);
   const first = screen.getByRole("button", { name: "3♣" });
@@ -388,8 +424,70 @@ test("bấm 'Xếp theo ...' sau khi tự xếp thì quay về tự xếp", () =
   fireEvent.pointerMove(first, { pointerType: "mouse", buttons: 1, clientX: 200, clientY: 140 });
   fireEvent.pointerUp(first, { pointerType: "mouse" });
   expect(handLabels(container)).toEqual(["4♠", "10♦", "2♥", "3♣"]);
-  fireEvent.click(screen.getByRole("button", { name: "Xếp theo chất" }));
-  expect(handLabels(container)).toEqual(["4♠", "3♣", "10♦", "2♥"]); // ♠ ♣ ♦ ♥
+  fireEvent.click(sortToggle());
+  expect(handLabels(container)).toEqual(["3♣", "4♠", "10♦", "2♥"]); // 4 lá rời rạc: toàn lá lẻ, xếp theo hạng
+  expect(sortToggle()).toHaveAttribute("aria-label", expect.stringContaining("đang xếp theo bộ"));
+});
+
+test("⇄ chuyển giữa xếp theo lá và xếp theo bộ; chế độ được nhớ cho ván / lượt sau", () => {
+  // 3♠ 4♠ 5♠ là sảnh, 9♦ và 2♥ lẻ; xếp theo lá cho cùng thứ tự nhưng không có khoảng ngắt nhóm.
+  const game = handWith(["2♥", "9♦", "5♠", "3♠", "4♠"]);
+  const first = render(<GameTable game={game} {...baseProps} />);
+  expect(handLabels(first.container)).toEqual(["3♠", "4♠", "5♠", "9♦", "2♥"]);
+  expect(sortToggle()).toHaveAttribute("aria-label", expect.stringContaining("đang xếp theo lá"));
+  expect(first.container.querySelectorAll(".group-start")).toHaveLength(0);
+
+  fireEvent.click(sortToggle());
+  expect(sortToggle()).toHaveAttribute("aria-label", expect.stringContaining("đang xếp theo bộ"));
+  expect(handLabels(first.container)).toEqual(["3♠", "4♠", "5♠", "9♦", "2♥"]);
+  // Nhóm: [3♠ 4♠ 5♠] [9♦] [2♥] → lá đầu của nhóm 2 và 3 có khoảng ngắt.
+  expect(Array.from(first.container.querySelectorAll(".group-start")).map((e) => e.textContent)).toEqual(["9♦", "2♥"]);
+  expect(first.container.querySelector<HTMLElement>(".my-hand")!.style.getPropertyValue("--g")).toBe("2");
+
+  first.unmount(); // sang ván / lượt sau: component dựng lại nhưng vẫn giữ chế độ đã chọn
+  const next = render(<GameTable game={game} {...baseProps} />);
+  expect(sortToggle()).toHaveAttribute("aria-label", expect.stringContaining("đang xếp theo bộ"));
+  expect(next.container.querySelectorAll(".group-start")).toHaveLength(2);
+});
+
+test("xếp theo bộ: nhóm khác loại cách nhau; đổi chế độ khi đang chọn lá vẫn giữ lá đã chọn (theo ID)", () => {
+  // Đôi 7, bộ ba 9, sảnh 3-4-5 và 2 lá lẻ.
+  const game = handWith(["K♠", "9♠", "9♣", "9♦", "7♣", "7♦", "3♠", "4♠", "5♠", "A♦"]);
+  const { container } = render(<GameTable game={game} {...baseProps} />);
+  fireEvent.click(sortToggle());
+  // Sảnh | bộ ba | đôi | lá lẻ (đúng thứ tự hiển thị).
+  expect(handLabels(container)).toEqual(["3♠", "4♠", "5♠", "9♠", "9♣", "9♦", "7♣", "7♦", "K♠", "A♦"]);
+  expect(Array.from(container.querySelectorAll(".group-start")).map((e) => e.textContent)).toEqual(["9♠", "7♣", "K♠", "A♦"]);
+
+  fireEvent.click(screen.getByRole("button", { name: "9♣" }));
+  fireEvent.click(screen.getByRole("button", { name: "K♠" }));
+  fireEvent.click(sortToggle()); // sang xếp theo lá
+  expect(screen.getByRole("button", { name: "9♣" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "K♠" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Đánh (2)" })).toBeInTheDocument();
+  fireEvent.click(sortToggle()); // và quay lại xếp theo bộ
+  expect(screen.getByRole("button", { name: "Đánh (2)" })).toBeInTheDocument();
+});
+
+test("thứ tự lá không đổi khi chạm chọn hoặc khi server gửi lại trạng thái với cùng các lá", () => {
+  const { container, rerender } = render(<GameTable game={handWith(["9♦", "3♠", "4♠", "5♠", "K♣"])} {...baseProps} />);
+  fireEvent.click(sortToggle());
+  const before = handLabels(container);
+  fireEvent.click(screen.getByRole("button", { name: "K♣" }));
+  expect(handLabels(container)).toEqual(before); // chạm chọn không đổi thứ tự
+  // Bản cập nhật mới của server: mảng bài mới (đảo thứ tự) nhưng cùng tập lá, ví dụ người khác vừa đánh.
+  rerender(<GameTable game={handWith(["K♣", "5♠", "9♦", "4♠", "3♠"])} {...baseProps} />);
+  expect(handLabels(container)).toEqual(before);
+  expect(screen.getByRole("button", { name: "K♣" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("xếp theo bộ cập nhật khi các lá trên tay thay đổi (sau khi mình đánh bài)", () => {
+  const { container, rerender } = render(<GameTable game={handWith(["3♠", "4♠", "5♠", "9♦", "K♣"])} {...baseProps} />);
+  fireEvent.click(sortToggle());
+  expect(container.querySelectorAll(".group-start")).toHaveLength(2); // sảnh | 9♦ | K♣
+  rerender(<GameTable game={handWith(["9♦", "K♣"])} {...baseProps} />); // đã đánh cả sảnh
+  expect(handLabels(container)).toEqual(["9♦", "K♣"]);
+  expect(container.querySelectorAll(".group-start")).toHaveLength(1);
 });
 
 test("quét ngang trên vùng trống phía trên hàng bài để chọn cả dải, rồi đánh cùng lúc", () => {
@@ -451,4 +549,78 @@ test("máy tính: không có nút Thông tin / Rời phòng trong bàn (vẫn d�
   render(<GameTable game={live(view())} {...baseProps} info={<p>Bảng điểm phiên</p>} onLeave={vi.fn()} />);
   expect(screen.queryByRole("button", { name: /Thông tin/ })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Rời phòng" })).not.toBeInTheDocument();
+});
+
+// --- Ván 3 người -------------------------------------------------------------------------------------------------
+
+const threePlayers = (overrides: Partial<GameView> = {}) =>
+  view({
+    players: [0, 1, 2].map((seat) => ({ seat, cardCount: 13, playedCount: 0, status: "ACTIVE", rank: null })),
+    ...overrides,
+  });
+
+test("3 người: chỉ có hai đối thủ (trái và phải), không có ghế đối diện ở trên", () => {
+  const { container } = render(<GameTable game={live(threePlayers())} {...baseProps} />);
+  expect(container.querySelectorAll(".opponent")).toHaveLength(2);
+  expect(container.querySelector(".opponent.pos-left")).not.toBeNull();
+  expect(container.querySelector(".opponent.pos-right")).not.toBeNull();
+  expect(container.querySelector(".opponent.pos-top")).toBeNull();
+  // Ghế kế tiếp của mình (ghế 1) ở bên trái, ghế 2 ở bên phải.
+  expect(container.querySelector(".opponent.pos-left")).toHaveTextContent("Huy");
+  expect(container.querySelector(".opponent.pos-right")).toHaveTextContent("Minh");
+});
+
+test("3 người: bài người ghế 2 đánh bay vào từ bên phải, người ghế 1 từ bên trái", () => {
+  const trick = (seat: number) => ({
+    leader: seat,
+    top: [44, 47],
+    topCombo: "PAIR",
+    topSeat: seat,
+    topIsChop: false,
+    passed: [],
+    chainValue: 0,
+  });
+  const fromSeat2 = render(<GameTable game={live(threePlayers({ trick: trick(2), firstMovePending: false }))} {...baseProps} />);
+  expect(fromSeat2.container.querySelector(".trick-cards")).toHaveClass("from-right");
+  fromSeat2.unmount();
+  const fromSeat1 = render(<GameTable game={live(threePlayers({ trick: trick(1), firstMovePending: false }))} {...baseProps} />);
+  expect(fromSeat1.container.querySelector(".trick-cards")).toHaveClass("from-left");
+});
+
+test("lá mở ván lấy từ server: hiện 3♦ khi 3♣ không được chia, mặc định vẫn là 3♣", () => {
+  const threeDiamonds = 2; // 3♦
+  const { rerender } = render(<GameTable game={live(threePlayers({ openingCard: threeDiamonds }))} {...baseProps} />);
+  expect(screen.getByText("Bạn mở vòng (phải có 3♦)")).toBeInTheDocument();
+  rerender(<GameTable game={live(threePlayers())} {...baseProps} />); // server cũ không gửi openingCard
+  expect(screen.getByText("Bạn mở vòng (phải có 3♣)")).toBeInTheDocument();
+});
+
+test("3 người: bong bóng chat của người ngồi bên phải có đuôi bên phải", () => {
+  const { container } = render(
+    <GameTable game={live(threePlayers())} {...baseProps} chats={{ 2: { text: "Toang rồi", key: 1 } }} />,
+  );
+  expect(container.querySelector(".opponent.pos-right .chat-bubble")).toHaveClass("tail-right");
+});
+
+test("bảng kết quả ván 3 người: 3 dòng, tổng điểm của 3 người", () => {
+  const result: GameResult = {
+    gameId: "g3",
+    rules: { version: 1, hash: "h" },
+    deckCommitment: "abcdef0123456789",
+    deckReveal: null,
+    result: {
+      ...threePlayers({ phase: "FINISHED", endType: "NORMAL", current: null, yourSeat: 0 }),
+      players: [
+        { seat: 0, cardCount: 0, playedCount: 13, status: "FINISHED", rank: 1 },
+        { seat: 1, cardCount: 0, playedCount: 13, status: "FINISHED", rank: 2 },
+        { seat: 2, cardCount: 3, playedCount: 10, status: "FINISHED", rank: 3 },
+      ],
+      net: [300, -100, -200],
+      transfers: [],
+    },
+  };
+  render(<GameResultPanel result={result} seats={seats} yourSeat={0} onReady={vi.fn()} onClose={vi.fn()} />);
+  expect(screen.getAllByRole("row")).toHaveLength(4); // tiêu đề + 3 người
+  expect(screen.getByText("+300")).toBeInTheDocument();
+  expect(screen.getByText(/Tổng điểm 3 người: 0/)).toBeInTheDocument();
 });

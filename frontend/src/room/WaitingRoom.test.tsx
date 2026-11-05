@@ -143,6 +143,19 @@ test("người không phải chủ phòng không có nút Đóng phòng; chưa s
   expect(screen.getByRole("button", { name: "Sẵn sàng" })).not.toHaveClass("is-ready");
 });
 
+test("chủ phòng thấy nút × cạnh người chơi khác (không có ở ghế mình và ghế trống)", () => {
+  const onKick = vi.fn();
+  renderOwnerRoom({ onKick });
+  expect(screen.getAllByRole("button", { name: /ra khỏi phòng/ })).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Mời Huy ra khỏi phòng" }));
+  expect(onKick).toHaveBeenCalledWith(expect.objectContaining({ seatNo: 1, nickname: "Huy" }));
+});
+
+test("người không phải chủ phòng không thấy nút ×", () => {
+  renderOwnerRoom({ yourSeat: 1, onKick: vi.fn() });
+  expect(screen.queryByRole("button", { name: /ra khỏi phòng/ })).not.toBeInTheDocument();
+});
+
 test("điện thoại: có nút Thông tin mở popup điểm phiên; máy tính thì không", () => {
   const matchMedia = (matches: boolean) =>
     vi.stubGlobal(
@@ -184,4 +197,34 @@ test("bấm Luật mở popup luật ngay trong phòng; đóng bằng X (hoặc 
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(onLeave).not.toHaveBeenCalled(); // không rời phòng
+});
+
+// --- Phòng 3 người ------------------------------------------------------------------------------------------------
+
+const roomOf = (count: 3 | 4): RoomState => ({ ...room, seats: room.seats.slice(0, count) });
+
+test("phòng 3 người: 3 ghế (trái và phải, không có ghế trên), đếm theo 3 và nhắc đủ 3 người", () => {
+  const three = roomOf(3);
+  const { container } = renderOwnerRoom({ room: three });
+  expect(container.querySelectorAll(".seat-card")).toHaveLength(3);
+  expect(container.querySelector(".seat-card.pos-top")).toBeNull();
+  expect(screen.getByText(/3\/3 người · 1 sẵn sàng/)).toBeInTheDocument();
+  const notFull: RoomState = { ...three, seats: three.seats.map((s, i) => (i === 2 ? { ...s, occupied: false, nickname: null } : s)) };
+  const partial = renderOwnerRoom({ room: notFull });
+  expect(partial.container.querySelector(".hint")).toHaveTextContent("Cần đủ 3 người");
+});
+
+test("chủ phòng đổi phòng giữa 3 và 4 người; người khác không thấy nút này", () => {
+  const onChange = vi.fn();
+  renderOwnerRoom({ onChangePlayerCount: onChange });
+  const group = screen.getByRole("group", { name: "Số người chơi" });
+  expect(within(group).getByRole("button", { name: "4" })).toHaveAttribute("aria-pressed", "true");
+  expect(within(group).getByRole("button", { name: "4" })).toBeDisabled(); // đang là chế độ này
+  fireEvent.click(within(group).getByRole("button", { name: "3" }));
+  expect(onChange).toHaveBeenCalledWith(3);
+});
+
+test("không phải chủ phòng thì không có nút đổi số người", () => {
+  renderOwnerRoom({ yourSeat: 1, onChangePlayerCount: vi.fn() });
+  expect(screen.queryByRole("group", { name: "Số người chơi" })).not.toBeInTheDocument();
 });

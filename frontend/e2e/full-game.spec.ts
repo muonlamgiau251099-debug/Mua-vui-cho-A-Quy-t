@@ -111,8 +111,8 @@ test("4 người chơi trọn một ván trên trình duyệt, có người dùn
   await pages[0]!.mouse.move(lastBox.x + lastBox.width - 2, lastBox.y + 12, { steps: 8 });
   await pages[0]!.mouse.up();
   await expect(pages[0]!.locator(".my-hand button.card").last()).toHaveText(label!);
-  await pages[0]!.getByRole("button", { name: "Xếp theo chất", exact: true }).click();
-  await pages[0]!.getByRole("button", { name: "Xếp theo số", exact: true }).click();
+  await pages[0]!.getByRole("button", { name: /Đổi cách xếp bài/ }).click();
+  await pages[0]!.getByRole("button", { name: /Đổi cách xếp bài/ }).click();
 
   // Bố cục xoay ngang và popup thông tin đều nằm trong màn hình điện thoại.
   await phone.setViewportSize({ width: 844, height: 390 });

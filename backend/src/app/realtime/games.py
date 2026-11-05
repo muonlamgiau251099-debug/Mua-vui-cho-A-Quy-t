@@ -34,7 +34,7 @@ from tlmn_engine.dealing import DealResult, next_opening, start_game
 from tlmn_engine.projection import project_private, project_public
 from tlmn_engine.reducer import Action, Forfeit, Pass, Play, ResumeTimer, Timeout, apply
 from tlmn_engine.rules_config import RuleConfig, build_rules_snapshot, parse_rule_config, sha256_hex
-from tlmn_engine.state import EndType, GameState, Phase
+from tlmn_engine.state import PLAYER_COUNTS, EndType, GameState, Phase
 
 log = logging.getLogger(__name__)
 MAX_REDEALS = 100
@@ -115,7 +115,7 @@ class GameManager:
     # --- Bắt đầu ván --------------------------------------------------------------------------------
 
     async def start_if_ready(self, room_id: uuid.UUID) -> bool:
-        """ID 140: đủ 4 người đã kết nối và sẵn sàng → server xáo bài và chia (ID 153)."""
+        """ID 140: đủ người (3 hoặc 4) đã kết nối và sẵn sàng → server xáo bài và chia (ID 153)."""
         async with self._locks[room_id]:
             if room_id in self._live:
                 return False
@@ -142,7 +142,8 @@ class GameManager:
         seats = list(
             await s.scalars(select(RoomSeat).where(RoomSeat.room_id == room_id).order_by(RoomSeat.seat_no))
         )
-        if len(seats) != 4 or not all(seat.conn_state == "CONNECTED" and seat.ready for seat in seats):
+        everyone_ready = all(seat.conn_state == "CONNECTED" and seat.ready for seat in seats)
+        if len(seats) not in PLAYER_COUNTS or not everyone_ready:
             return None
         guests = [seat.guest_id for seat in seats if seat.guest_id is not None]
         roster = [str(g) for g in guests]
@@ -181,7 +182,9 @@ class GameManager:
         redeals = 0
         while True:
             deck = self.deck_source()
-            outcome = start_game(deck, opening, config, now, previous.winner_seat if previous else None)
+            outcome = start_game(
+                deck, opening, config, now, previous.winner_seat if previous else None, players=len(seats)
+            )
             if outcome.result != DealResult.REDEAL:
                 break
             redeals += 1  # ID 58, 59: chia lại
@@ -198,7 +201,7 @@ class GameManager:
             rule_version=active.version,
             rules_snapshot=snapshot,
             rules_hash=sha256_hex(snapshot),
-            opening_mode=opening.value,
+            opening_mode=state.opening_mode.value,  # có thể khác `opening` nếu người thắng ván trước vắng mặt
             deck=deck,
             deck_salt=salt,
             deck_commitment=deck_commitment(deck, salt),
@@ -215,7 +218,7 @@ class GameManager:
                 type="GAME_STARTED",
                 payload={
                     "now": now,
-                    "openingMode": opening.value,
+                    "openingMode": state.opening_mode.value,
                     "redeals": redeals,
                     "events": outcome.events,
                 },

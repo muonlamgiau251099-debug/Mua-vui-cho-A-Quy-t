@@ -140,7 +140,7 @@ export function HistoryPage() {
           </tbody>
         </table>
       </div>
-      <p className="muted small">Số trong ngoặc là điểm cộng dồn sau ván đó. Tổng điểm 4 người mỗi ván luôn bằng 0.</p>
+      <p className="muted small">Số trong ngoặc là điểm cộng dồn sau ván đó. Tổng điểm mọi người mỗi ván luôn bằng 0.</p>
     </main>
   );
 }

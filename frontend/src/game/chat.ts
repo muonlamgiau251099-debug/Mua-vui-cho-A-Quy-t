@@ -15,8 +15,8 @@ export const CHAT_PHRASES = [
   { id: "undo", text: "Cho e đánh lại được không" },
 ] as const;
 
-/** Mỗi người chỉ chat 1 lần / 10 giây (server cũng kiểm tra, đây chỉ để khóa nút cho người dùng thấy). */
-export const CHAT_COOLDOWN_MS = 10_000;
+/** Mỗi người chỉ chat 1 lần / 4 giây (server cũng kiểm tra, đây chỉ để khóa nút cho người dùng thấy). */
+export const CHAT_COOLDOWN_MS = 4_000;
 /** Bong bóng hiện khoảng 4 giây. */
 export const CHAT_SHOW_MS = 4_000;
 /** Số ký tự tối đa của chữ tự do (khớp CHAT_MAX_LENGTH ở backend). */

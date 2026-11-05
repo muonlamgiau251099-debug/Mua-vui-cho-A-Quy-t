@@ -65,7 +65,7 @@ export function RankBanner({ game, result, seats }: Props) {
     const items: Item[] = [];
     r.players.forEach((p) => {
       const base = { name: seatName(seats, p.seat) };
-      if (p.status === "CONG" || (p.status === "FINISHED" && p.rank === 4)) {
+      if (p.status === "CONG" || (p.status === "FINISHED" && p.rank === r.players.length)) { // hạng cuối: 4 (ván 4 người) hoặc 3
         items.push({ ...base, id: `${result.gameId}:${p.seat}:4`, rank: 4 });
       }
     });

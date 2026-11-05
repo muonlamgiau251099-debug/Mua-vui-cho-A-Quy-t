@@ -216,6 +216,47 @@ def test_chain_chop_is_cumulative_last_victim_pays_all() -> None:
     assert t.net == [0, -400, 400, 0]  # A không mất điểm (ví dụ 4, docs/gd2/03 §7)
 
 
+@pytest.mark.rule(81, 82, 83, 117, 118)
+def test_chopping_heo_over_heo_takes_every_heo_last_victim_pays() -> None:
+    t = Table(make_game(["2S 3S", "2H 3D", f"{PS3} 4D", "7H 8H"]))
+    t.play(A, "2S")
+    t.play(B, "2H")  # heo đỏ đè heo đen
+    t.play(C, PS3)
+    t.pass_(D)
+    t.pass_(A)
+    t.pass_(B)
+    chop = t.of_type("TRICK_CLOSED")[-1]["chop"]
+    assert (chop["from"], chop["to"], chop["amount"]) == (B, C, 300)  # 100 (heo đen) + 200 (heo đỏ)
+    assert t.net == [0, -300, 300, 0]
+
+
+def test_heo_over_heo_without_chop_scores_nothing() -> None:
+    t = Table(make_game(["2S 3S", "2H 3D", "4D 5D", "7H 8H"]))
+    t.play(A, "2S")
+    t.play(B, "2H")
+    t.pass_(C)
+    t.pass_(D)
+    t.pass_(A)
+    assert t.of_type("TRICK_CLOSED")[-1]["chop"] is None
+    assert t.state.trick.heo_carry == 0
+
+
+@pytest.mark.rule(41, 83, 119, 120, 121, 122)
+def test_four_level_chain_last_victim_pays_800() -> None:
+    t = Table(make_game(["2H 3S", f"{PS3} 3D", f"{FK} 4D", f"{PS4} 5D"]))
+    t.play(A, "2H")
+    t.play(B, PS3)
+    t.play(C, FK)
+    t.play(D, PS4)
+    t.pass_(A)
+    t.pass_(B)
+    t.pass_(C)
+    chop = t.of_type("TRICK_CLOSED")[-1]["chop"]
+    # 200 (heo đỏ) + 200 (3 đôi thông) + 400 (tứ quý) → C gánh hết cho D
+    assert (chop["from"], chop["to"], chop["amount"]) == (C, D, 800)
+    assert t.net == [0, 0, -800, 800]
+
+
 def test_chopped_player_can_chop_back_in_turn() -> None:
     t = Table(make_game([f"2H {FK}", f"{PS3} 3D", "4D 5D", "7H 8H"]))
     t.play(A, "2H")

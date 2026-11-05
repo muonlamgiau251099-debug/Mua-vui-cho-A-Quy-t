@@ -19,11 +19,10 @@ import {
   moveCard,
   rankLabel,
   rankOf,
-  sortHand,
   suitSymbol,
   suitOf,
-  type SortMode,
 } from "./cards";
+import { groupHand, loadSortKind, saveSortKind, sortByCard, type SortKind } from "./handSort";
 import { Modal } from "./Modal";
 import {
   CHAT_COOLDOWN_MS,
@@ -138,10 +137,17 @@ function PlayBurst({ text, who }: { text: string; who: string }) {
   );
 }
 
-type CardFaceProps = { card: number; selected?: boolean; dragging?: boolean; index?: number; onClick?: () => void };
+type CardFaceProps = {
+  card: number;
+  selected?: boolean;
+  dragging?: boolean;
+  groupStart?: boolean; // lá đầu một nhóm khi xếp theo bộ: chừa khoảng cách phía trước
+  index?: number;
+  onClick?: () => void;
+};
 
-function CardFace({ card, selected, dragging, index, onClick }: CardFaceProps) {
-  const className = `card${isRed(card) ? " red" : ""}${selected ? " selected" : ""}${dragging ? " dragging" : ""}`;
+function CardFace({ card, selected, dragging, groupStart, index, onClick }: CardFaceProps) {
+  const className = `card${isRed(card) ? " red" : ""}${selected ? " selected" : ""}${dragging ? " dragging" : ""}${groupStart ? " group-start" : ""}`;
   return onClick ? (
     <button type="button" className={className} aria-pressed={selected} data-card-idx={index} onClick={onClick}>
       {cardLabel(card)}
@@ -170,8 +176,19 @@ const SendIcon = () => (
   </svg>
 );
 
-/** Card kéo lên từ dưới (~60% màn hình): ô nhập chữ tự do + nút gửi, bên dưới là các câu có sẵn. */
-function ChatSheet({ onSend, onClose }: { onSend: (msg: ChatOutgoing) => void; onClose: () => void }) {
+/**
+ * Card kéo lên từ dưới (~60% màn hình): ô nhập chữ tự do + nút gửi, bên dưới là các câu có sẵn.
+ * Trong thời gian chờ (waitLeft giây) vẫn mở card và nhập sẵn được; chỉ nút gửi và các câu có sẵn bị khóa.
+ */
+function ChatSheet({
+  onSend,
+  onClose,
+  waitLeft,
+}: {
+  onSend: (msg: ChatOutgoing) => void;
+  onClose: () => void;
+  waitLeft: number;
+}) {
   const [text, setText] = useState("");
   const clean = cleanChatText(text);
 
@@ -191,7 +208,7 @@ function ChatSheet({ onSend, onClose }: { onSend: (msg: ChatOutgoing) => void; o
           className="chat-compose"
           onSubmit={(e) => {
             e.preventDefault();
-            if (clean) onSend({ text: clean });
+            if (clean && waitLeft === 0) onSend({ text: clean }); // đang chờ: giữ nguyên chữ đã nhập
           }}
         >
           <input
@@ -203,17 +220,28 @@ function ChatSheet({ onSend, onClose }: { onSend: (msg: ChatOutgoing) => void; o
             enterKeyHint="send"
             onChange={(e) => setText(e.target.value)}
           />
-          <button type="submit" className="send-btn" aria-label="Gửi" disabled={!clean}>
-            <SendIcon />
+          <button
+            type="submit"
+            className="send-btn"
+            aria-label="Gửi"
+            title={waitLeft > 0 ? `Chờ ${waitLeft} giây nữa mới gửi được` : "Gửi"}
+            disabled={!clean || waitLeft > 0}
+          >
+            {waitLeft > 0 ? <span className="send-wait">{waitLeft}s</span> : <SendIcon />}
           </button>
         </form>
         <p className="chat-count small muted" aria-hidden="true">
           {Array.from(text).length}/{CHAT_MAX_LENGTH}
         </p>
+        {waitLeft > 0 && (
+          <p className="chat-wait small" role="status">
+            Chờ {waitLeft} giây nữa để gửi tin tiếp — bạn vẫn nhập sẵn được.
+          </p>
+        )}
         <p className="chat-section small muted">Câu có sẵn</p>
         <div className="chat-presets" role="group" aria-label="Câu chat có sẵn">
           {CHAT_PHRASES.map((p) => (
-            <button key={p.id} type="button" onClick={() => onSend({ phrase: p.id })}>
+            <button key={p.id} type="button" disabled={waitLeft > 0} onClick={() => onSend({ phrase: p.id })}>
               {p.text}
             </button>
           ))}
@@ -223,7 +251,7 @@ function ChatSheet({ onSend, onClose }: { onSend: (msg: ChatOutgoing) => void; o
   );
 }
 
-/** Nút chat: mở card chat, khóa 10 giây sau mỗi lần gửi. */
+/** Nút chat: luôn mở được card chat; sau mỗi lần gửi phải chờ 4 giây mới gửi tiếp (nhưng vẫn nhập sẵn được). */
 function ChatMenu({ onChat }: { onChat?: (msg: ChatOutgoing) => boolean | void }) {
   const [open, setOpen] = useState(false);
   const [until, setUntil] = useState(0);
@@ -240,6 +268,7 @@ function ChatMenu({ onChat }: { onChat?: (msg: ChatOutgoing) => boolean | void }
 
   const left = Math.max(0, Math.ceil((until - now) / 1000));
   const send = (msg: ChatOutgoing) => {
+    if (Date.now() < until) return; // còn trong thời gian chờ (giới hạn thật vẫn do server kiểm tra)
     if (onChat?.(msg) === false) return; // chưa gửi được (mất kết nối): giữ card mở để thử lại
     setOpen(false);
     const t = Date.now();
@@ -254,12 +283,12 @@ function ChatMenu({ onChat }: { onChat?: (msg: ChatOutgoing) => boolean | void }
         className="chat-toggle tool"
         aria-haspopup="dialog"
         aria-expanded={open}
-        disabled={!onChat || left > 0}
+        disabled={!onChat}
         onClick={() => setOpen(true)}
       >
         💬 {left > 0 ? `${left}s` : "Chat"}
       </button>
-      {open && createPortal(<ChatSheet onSend={send} onClose={() => setOpen(false)} />, document.body)}
+      {open && createPortal(<ChatSheet onSend={send} onClose={() => setOpen(false)} waitLeft={left} />, document.body)}
     </div>
   );
 }
@@ -279,7 +308,7 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
   const me = state.yourSeat ?? 0;
   const compact = useMediaQuery(COMPACT_QUERY);
   const [selected, setSelected] = useState<number[]>([]);
-  const [sortMode, setSortMode] = useState<SortMode>("rank");
+  const [sortKind, setSortKind] = useState<SortKind>(loadSortKind); // chế độ xếp bài: nhớ qua lượt và ván sau
   const [custom, setCustom] = useState<number[] | null>(null); // thứ tự do người chơi tự kéo thả; null = tự xếp
   const [infoOpen, setInfoOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -289,18 +318,41 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
     [seats, me],
   );
 
+  // Thứ tự lá trên tay chỉ phụ thuộc TẬP lá (theo ID), chế độ xếp và thứ tự tự kéo thả: chạm chọn lá, người khác đánh
+  // bài hay server gửi lại trạng thái đều không làm đổi thứ tự. Cả hai cách xếp được tính sẵn một lần cho mỗi tay
+  // (có cache theo tập ID); bấm ⇄ chỉ chuyển sang kết quả đã tính.
+  const handKey = [...(state.yourHand ?? [])].sort((a, b) => a - b).join(",");
+  const layouts = useMemo(() => {
+    const ids = handKey ? handKey.split(",").map(Number) : [];
+    return { card: sortByCard(ids), group: groupHand(ids) };
+  }, [handKey]);
   const hand = useMemo(() => {
-    const base = sortHand(state.yourHand ?? [], sortMode);
+    const base = sortKind === "group" ? [...layouts.group.order] : layouts.card;
     if (!custom) return base;
     const have = new Set(base);
     const kept = custom.filter((c) => have.has(c)); // bỏ những lá đã đánh
     const keptSet = new Set(kept);
     return [...kept, ...base.filter((c) => !keptSet.has(c))];
-  }, [state.yourHand, sortMode, custom]);
+  }, [layouts, sortKind, custom]);
+  // Lá đầu mỗi nhóm (trừ nhóm đầu) để chừa khoảng cách khi xếp theo bộ; không áp dụng khi người chơi tự kéo thả.
+  const groupStarts = useMemo(() => {
+    const starts = new Set<number>();
+    if (sortKind === "group" && !custom) layouts.group.groups.forEach((g, i) => i > 0 && starts.add(g.cards[0]!));
+    return starts;
+  }, [layouts, sortKind, custom]);
+  const toggleSortKind = () => {
+    const next: SortKind = sortKind === "card" ? "group" : "card";
+    setCustom(null); // quay về tự xếp theo chế độ mới
+    setSortKind(next);
+    saveSortKind(next);
+  };
   // Ván mới: về lại thứ tự tự xếp.
   useEffect(() => setCustom(null), [game.gameId]);
-  // Bỏ chọn những lá không còn trên tay (vd vừa đánh xong hoặc server tự đánh khi hết giờ).
-  useEffect(() => setSelected((prev) => prev.filter((c) => state.yourHand?.includes(c))), [state.yourHand]);
+  // Bỏ chọn những lá không còn trên tay (vd vừa đánh xong hoặc server tự đánh khi hết giờ). Giữ nguyên mảng nếu không đổi.
+  useEffect(() => {
+    const have = new Set(state.yourHand ?? []);
+    setSelected((prev) => (prev.every((c) => have.has(c)) ? prev : prev.filter((c) => have.has(c))));
+  }, [state.yourHand]);
   useEffect(() => {
     const lines = game.events.map((e) => describeEvent(e, name)).filter((l): l is string => l !== null);
     if (lines.length) setLog((prev) => [...lines.reverse(), ...prev].slice(0, 8));
@@ -324,14 +376,17 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
     window.clearTimeout(burstTimer.current);
     burstTimer.current = window.setTimeout(() => setBurst(null), 1900);
   }, [playKey, name, state.trick.top, state.trick.topCombo, state.trick.topSeat]);
-  // Bài vừa đánh bay vào từ phía người đánh (0 = bạn, 1 = trái, 2 = trên, 3 = phải).
-  const fromPos = ["me", "left", "top", "right"][(((state.trick.topSeat ?? me) - me) % 4 + 4) % 4];
+  // Bài vừa đánh bay vào từ phía người đánh.
+  const count = state.players.length; // 3 hoặc 4 người chơi
+  const positions = count === 3 ? ["left", "right"] : ["left", "top", "right"]; // 3 người: không có ghế đối diện
+  const offsetOf = (seat: number) => (seat - me + count) % count;
+  const fromPos = offsetOf(state.trick.topSeat ?? me) === 0 ? "me" : positions[offsetOf(state.trick.topSeat ?? me) - 1];
   const leading = state.trick.top === null;
-  // Vị trí theo chiều kim đồng hồ: người kế tiếp bên trái, đối diện ở trên, người trước bên phải.
-  const others = [1, 2, 3].map((offset) => (me + offset) % 4);
+  // Vị trí theo chiều kim đồng hồ: người kế tiếp bên trái, (ván 4 người: đối diện ở trên), người trước bên phải.
+  const others = positions.map((pos, i) => ({ seat: (me + 1 + i) % count, pos }));
   // Tương tác với bài trên tay:
   //  - bấm từng lá để chọn / bỏ chọn;
-  //  - kéo một lá sang vị trí khác để tự xếp bài (giữ nguyên cho tới khi bấm "Xếp theo ...");
+  //  - kéo một lá sang vị trí khác để tự xếp bài (giữ nguyên cho tới khi bấm ⇄);
   //  - quét ngang trên vùng trống phía trên hàng bài để chọn / bỏ chọn cả dải lá.
   const gesture = useRef<Gesture | null>(null);
   const handRef = useRef<HTMLDivElement>(null);
@@ -431,18 +486,18 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
         </>
       )}
       <div className="opponents">
-        {others.map((seat, i) => {
+        {others.map(({ seat, pos }) => {
           const p = state.players[seat]!;
           return (
             <div
               key={seat}
-              className={`opponent pos-${["left", "top", "right"][i]}${state.current === seat ? " turn" : ""}`}
+              className={`opponent pos-${pos}${state.current === seat ? " turn" : ""}`}
             >
               <span className="avatar" aria-hidden="true">
                 {name(seat).charAt(0).toUpperCase()}
               </span>
               {chats?.[seat] && (
-                <SpeechBubble key={chats[seat]!.key} text={chats[seat]!.text} tail={["left", "side", "right"][i] as "left" | "side" | "right"} />
+                <SpeechBubble key={chats[seat]!.key} text={chats[seat]!.text} tail={pos === "top" ? "side" : (pos as "left" | "right")} />
               )}
               <strong className="opponent-name">{name(seat)}</strong>
               {p.cardCount === 1 && p.status === "ACTIVE" && (
@@ -476,7 +531,7 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
         ) : (
           <div className="muted">
             {name(state.trick.leader)} mở vòng
-            {state.firstMovePending && state.openingMode === "THREE_CLUBS" && " (phải có 3♣)"}
+            {state.firstMovePending && state.openingMode === "THREE_CLUBS" && ` (phải có ${cardLabel(state.openingCard ?? 1)})`}
           </div>
         )}
       </div>
@@ -524,41 +579,50 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
         >
           Đánh {selected.length ? `(${selected.length})` : ""}
         </button>
-        <button
-          type="button"
-          className="tool"
-          onClick={() => {
-            setCustom(null); // quay về tự xếp
-            setSortMode(sortMode === "rank" ? "suit" : "rank");
-          }}
-        >
-          Xếp theo {sortMode === "rank" ? "chất" : "số"}
-        </button>
         <button type="button" className="tool" onClick={() => setSelected([])} disabled={!selected.length}>
           Bỏ chọn
         </button>
         {compact && <ChatMenu onChat={onChat} />}
       </div>
 
-      <div
-        className="my-hand"
-        ref={handRef}
-        aria-label="Bài của bạn"
-        onPointerDown={onHandDown}
-        onPointerMove={onHandMove}
-        onPointerUp={onHandUp}
-        onPointerCancel={onHandCancel}
-      >
-        {shownHand.map((card, i) => (
-          <CardFace
-            key={card}
-            card={card}
-            index={i}
-            dragging={drag?.card === card}
-            selected={selected.includes(card)}
-            onClick={() => toggle(card)}
-          />
-        ))}
+      {/* Hàng bài + nút ⇄ (đổi cách xếp) nằm bên phải hàng bài. */}
+      <div className="hand-row">
+        <div
+          className="my-hand"
+          ref={handRef}
+          aria-label="Bài của bạn"
+          onPointerDown={onHandDown}
+          onPointerMove={onHandMove}
+          onPointerUp={onHandUp}
+          onPointerCancel={onHandCancel}
+          style={{ "--g": drag ? 0 : groupStarts.size, "--n": shownHand.length } as CSSProperties}
+        >
+          {shownHand.map((card, i) => (
+            <CardFace
+              key={card}
+              card={card}
+              index={i}
+              dragging={drag?.card === card}
+              groupStart={!drag && groupStarts.has(card)}
+              selected={selected.includes(card)}
+              onClick={() => toggle(card)}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          className="sort-toggle"
+          aria-label={`Đổi cách xếp bài (đang xếp theo ${sortKind === "card" ? "lá" : "bộ"})`}
+          title={sortKind === "card" ? "Đang xếp theo lá — bấm để xếp theo bộ" : "Đang xếp theo bộ — bấm để xếp theo lá"}
+          onClick={toggleSortKind}
+        >
+          <span className="sort-icon" aria-hidden="true">
+            ⇄
+          </span>
+          <span className="sort-mode" aria-hidden="true">
+            {sortKind === "card" ? "Lá" : "Bộ"}
+          </span>
+        </button>
       </div>
 
       {/* Lá đang kéo vẽ ra ngoài khung bài (portal): khung bài dùng container query nên không chứa được phần tử fixed. */}

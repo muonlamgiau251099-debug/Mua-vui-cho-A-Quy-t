@@ -21,7 +21,7 @@ const RANK_LABEL = ["", "Nhất", "Nhì", "Ba", "Bét"];
 export function GameResultPanel({ result, seats, yourSeat, onReady, onClose }: Props) {
   const r = result.result;
   const name = (seat: number) => (seat === yourSeat ? "Bạn" : (seats[seat]?.nickname ?? `Ghế ${seat + 1}`));
-  const order = [0, 1, 2, 3].sort((a, b) => (r.players[a]?.rank ?? 9) - (r.players[b]?.rank ?? 9));
+  const order = r.players.map((_, seat) => seat).sort((a, b) => (r.players[a]?.rank ?? 9) - (r.players[b]?.rank ?? 9));
 
   return (
     <div className="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="result-title">
@@ -74,7 +74,7 @@ export function GameResultPanel({ result, seats, yourSeat, onReady, onClose }: P
           </>
         )}
         <p className="muted small">
-          Tổng điểm 4 người: {r.net.reduce((a, b) => a + b, 0)} · Luật v{result.rules.version}
+          Tổng điểm {r.players.length} người: {r.net.reduce((a, b) => a + b, 0)} · Luật v{result.rules.version}
           {result.deckReveal && ` · bộ bài đã công bố để kiểm chứng (salt ${result.deckReveal.salt.slice(0, 8)}…)`}
         </p>
         </div>
