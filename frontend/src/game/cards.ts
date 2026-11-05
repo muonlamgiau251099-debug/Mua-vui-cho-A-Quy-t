@@ -9,13 +9,6 @@ export const isRed = (card: number) => suitOf(card) >= 2;
 export const cardLabel = (card: number) => `${RANKS[rankOf(card)]}${SUITS[suitOf(card)]}`;
 export const cardsLabel = (cards: number[]) => [...cards].sort((a, b) => a - b).map(cardLabel).join(" ");
 
-export type SortMode = "rank" | "suit";
-
-export function sortHand(cards: number[], mode: SortMode): number[] {
-  const copy = [...cards];
-  return mode === "rank" ? copy.sort((a, b) => a - b) : copy.sort((a, b) => suitOf(a) - suitOf(b) || a - b);
-}
-
 const COMBO_LABEL: Record<string, string> = {
   SINGLE: "Rác",
   PAIR: "Đôi",
@@ -46,7 +39,28 @@ const ERROR_LABEL: Record<string, string> = {
   CANNOT_BEAT: "Bài chưa đủ lớn để chặn",
   INVALID_COMBINATION: "Bộ bài không hợp lệ",
   MUST_INCLUDE_THREE_CLUBS: "Nước đầu phải có 3♣",
+  MUST_INCLUDE_OPENING_CARD: "Nước đầu phải có lá mở ván (xem trên bàn)",
   LEADER_CANNOT_PASS: "Bạn đang mở vòng, không được bỏ lượt",
   STALE_STATE: "Bàn vừa thay đổi, hãy thử lại",
 };
 export const errorLabel = (code: string, fallback: string) => ERROR_LABEL[code] ?? fallback;
+
+/** Chuyển lá ở vị trí `from` sang vị trí `to` (tính trên danh sách sau khi đã bỏ lá đó ra). Không sửa mảng gốc. */
+export function moveCard(order: number[], from: number, to: number): number[] {
+  if (from < 0 || from >= order.length) return order;
+  const rest = order.filter((_, i) => i !== from);
+  const clamped = Math.max(0, Math.min(rest.length, to));
+  return [...rest.slice(0, clamped), order[from]!, ...rest.slice(clamped)];
+}
+
+/**
+ * Vị trí chèn khi kéo lá `skip` tới tọa độ x: bằng số lá còn lại có tâm nằm bên trái x.
+ * `centers` là tọa độ tâm các lá tại thời điểm bắt đầu kéo (theo thứ tự trên tay).
+ */
+export function insertionIndex(centers: number[], skip: number, x: number): number {
+  return centers.reduce((count, c, i) => (i !== skip && c < x ? count + 1 : count), 0);
+}
+
+/** Tách nhãn lá bài thành số và chất, để vẽ mặt bài (số trên, chất dưới). */
+export const rankLabel = (card: number) => RANKS[rankOf(card)]!;
+export const suitSymbol = (card: number) => SUITS[suitOf(card)]!;

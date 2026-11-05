@@ -62,7 +62,8 @@ def test_next_opening_mode() -> None:
     assert next_opening(EndType.INSTANT_WIN, 1) == OpeningMode.THREE_CLUBS  # ID 60
     assert next_opening(EndType.CANCELLED, 1) == OpeningMode.THREE_CLUBS  # G8
     assert next_opening(EndType.NORMAL, 1) == OpeningMode.WINNER_LEADS
-    assert next_opening(EndType.BLIND_THREE_SPADES, 3) == OpeningMode.WINNER_LEADS
+    # Yêu cầu mới (ghi đè D10): sau đút mù 3♠ cũng do người giữ 3♣ mở ván, không phải người đút mù.
+    assert next_opening(EndType.BLIND_THREE_SPADES, 3) == OpeningMode.THREE_CLUBS
 
 
 @pytest.mark.rule(49, 52, 53)

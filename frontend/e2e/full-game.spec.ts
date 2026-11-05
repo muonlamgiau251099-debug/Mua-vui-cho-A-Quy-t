@@ -29,7 +29,7 @@ async function playUntilResult(page: Page) {
         const card = mustThreeClubs
           ? page.locator(".my-hand").getByRole("button", { name: "3♣", exact: true })
           : page.locator(".my-hand button.card").first();
-        await card.click();
+        await card.click({ position: { x: 8, y: 12 } });
         await page.getByRole("button", { name: /^Đánh/ }).click();
       }
       await page.waitForTimeout(250); // tốc độ người thật (server giới hạn 10 lệnh/giây)
@@ -48,6 +48,10 @@ test("4 người chơi trọn một ván trên trình duyệt, có người dùn
   // Chủ phòng tạo phòng
   await enterNickname(pages[0]!, names[0]!);
   await expect(pages[0]!).toHaveURL(/\/lobby$/);
+  await pages[0]!.getByRole("button", { name: /Đổi tên/ }).click();
+  await pages[0]!.getByLabel("Tên hiển thị mới").fill("Lan Mới");
+  await pages[0]!.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(pages[0]!.getByText("Lan Mới", { exact: true })).toBeVisible();
   await pages[0]!.getByRole("button", { name: "Tạo phòng mới" }).click();
   await expect(pages[0]!).toHaveURL(/\/r\/[A-Z2-9]{6}$/);
   const code = pages[0]!.url().split("/r/")[1]!;
@@ -62,6 +66,13 @@ test("4 người chơi trọn một ván trên trình duyệt, có người dùn
   await expect(pages[0]!.getByText("4/4 người", { exact: false })).toBeVisible();
   await shot(pages[0]!, "1-phong-cho");
 
+  // Xem luật trên điện thoại bằng popup, vẫn giữ phòng và kết nối.
+  await pages[3]!.getByRole("button", { name: "Luật v1", exact: true }).click();
+  const rulesDialog = pages[3]!.getByRole("dialog", { name: "Luật đang áp dụng" });
+  await expect(rulesDialog.getByText(/Phiên bản/)).toBeVisible();
+  await rulesDialog.getByRole("button", { name: "Đóng", exact: true }).click();
+  await expect(pages[3]!).toHaveURL(new RegExp(`/r/${code}$`));
+
   // Cả 4 sẵn sàng → server chia bài
   for (const page of pages) await page.getByRole("button", { name: "Sẵn sàng", exact: true }).click();
   for (const page of pages) {
@@ -69,16 +80,50 @@ test("4 người chơi trọn một ván trên trình duyệt, có người dùn
     await expect(page.locator(".my-hand button.card")).toHaveCount(13);
   }
 
-  await pages[0]!.locator(".my-hand button.card").nth(2).click(); // chọn thử 1 lá để thấy hiệu ứng
+  await pages[0]!.locator(".my-hand button.card").nth(2).click({ position: { x: 8, y: 12 } }); // chọn thử 1 lá để thấy hiệu ứng
   await shot(pages[0]!, "2-ban-choi-may-tinh");
   await shot(pages[3]!, "3-ban-choi-dien-thoai");
-  await pages[0]!.locator(".my-hand button.card").nth(2).click();
+  await pages[0]!.locator(".my-hand button.card").nth(2).click({ position: { x: 8, y: 12 } });
 
   // Điện thoại: không bị tràn ngang, nút thao tác nằm trong màn hình
   const phone = pages[3]!;
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await expect(phone.getByRole("button", { name: /^Đánh/ })).toBeInViewport();
+
+  // Gửi chữ tự do từ điện thoại, nhận trên máy tính và ngược lại với câu chat mới.
+  await phone.getByRole("button", { name: "💬 Chat", exact: true }).click();
+  const compose = phone.getByRole("dialog", { name: "Chat", exact: true });
+  await compose.getByRole("textbox", { name: "Tin nhắn" }).fill("Kiểm tra chat mới");
+  await compose.getByRole("button", { name: "Gửi", exact: true }).click();
+  await expect(pages[0]!.locator(".chat-bubble").filter({ hasText: "Kiểm tra chat mới" })).toBeVisible();
+  await pages[0]!.getByRole("button", { name: "💬 Chat", exact: true }).click();
+  await pages[0]!.getByRole("dialog", { name: "Chat", exact: true }).getByRole("button", { name: "Xin cây 3 bích", exact: true }).click();
+  await expect(phone.locator(".chat-bubble").filter({ hasText: "Xin cây 3 bích" })).toBeVisible();
+
+  // Kéo lá đầu về cuối trên máy tính, rồi trả về thứ tự tự xếp để bot chơi.
+  const first = pages[0]!.locator(".my-hand button.card").first();
+  const label = await first.textContent();
+  const box = (await first.boundingBox())!;
+  const lastBox = (await pages[0]!.locator(".my-hand button.card").last().boundingBox())!;
+  await pages[0]!.mouse.move(box.x + 8, box.y + 12);
+  await pages[0]!.mouse.down();
+  await pages[0]!.mouse.move(lastBox.x + lastBox.width - 2, lastBox.y + 12, { steps: 8 });
+  await pages[0]!.mouse.up();
+  await expect(pages[0]!.locator(".my-hand button.card").last()).toHaveText(label!);
+  await pages[0]!.getByRole("button", { name: /Đổi cách xếp bài/ }).click();
+  await pages[0]!.getByRole("button", { name: /Đổi cách xếp bài/ }).click();
+
+  // Bố cục xoay ngang và popup thông tin đều nằm trong màn hình điện thoại.
+  await phone.setViewportSize({ width: 844, height: 390 });
+  await expect(phone.getByRole("button", { name: /^Đánh/ })).toBeInViewport();
+  await phone.getByRole("button", { name: /Thông tin/ }).click();
+  const info = phone.getByRole("dialog", { name: "Thông tin", exact: true });
+  await expect(info).toBeInViewport();
+  await info.getByRole("button", { name: "Đóng", exact: true }).click();
+  expect(await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await shot(phone, "3b-dien-thoai-ngang");
+  await phone.setViewportSize({ width: 390, height: 844 });
 
   // Chơi trọn ván
   await Promise.all(pages.map(playUntilResult));

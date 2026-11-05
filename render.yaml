@@ -1,0 +1,13 @@
+# Single same-origin service. No databases, disks, workers or paid resources.
+services:
+  - type: web
+    name: tlmn-thay-trung
+    runtime: docker
+    repo: https://github.com/muonlamgiau251099-debug/Mua-vui-cho-A-Quy-t
+    branch: feature/render-free-memory
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: 'off'
