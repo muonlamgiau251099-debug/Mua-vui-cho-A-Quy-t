@@ -58,6 +58,20 @@ Dùng `render.yaml`: một Web Service Docker, **plan: free**, Singapore, nhánh
 
 Một worker Uvicorn là bắt buộc vì trạng thái nằm trong RAM. Không thêm workers/replicas.
 
+### Thống kê khách theo giờ Nhật
+
+Trong Render Dashboard, mở **Logs** của web service và lọc `TLMN_GUEST_LOGIN`.
+Mỗi dòng chứa `hour_jst` và tương ứng với một phiên khách được tạo hoặc xác thực
+thành công trong giờ đó. Tải lại trong cùng giờ không đếm lại cùng phiên. Người
+chỉ xem trang chưa có phiên, hoặc tiếp tục chơi trong phòng đã mở mà không xác
+thực lại hồ sơ, không được tính trong giờ mới.
+
+Đây là số phiên khách theo giờ, không phải số người duy nhất trong ngày: cùng
+một người có thể dùng nhiều trình duyệt hoặc tạo lại phiên sau khi server reset.
+Dòng thống kê không chứa tên, địa chỉ IP, mã phòng, ID khách hay token. Số liệu
+chỉ có từ lúc tính năng được deploy và tuân theo thời hạn giữ log của Render
+(7 ngày với workspace Hobby). Xem [Render Logs](https://render.com/docs/logging).
+
 ### Giới hạn cần biết
 
 - Render có thể restart bất kỳ lúc nào; sleep, restart hoặc deploy sẽ mất toàn bộ RAM, kể cả ván đang chơi. Cam kết “chơi hết ván rồi reset” áp dụng cho reset ngày do ứng dụng quản lý, không thể bảo đảm khi nền tảng dừng máy.

@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import os
 import time
 import uuid
 from collections import OrderedDict, deque
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -20,9 +22,12 @@ from pydantic import BaseModel, Field
 
 from app.errors import AppError, install_error_handlers
 from app.http_security import SECURITY_HEADERS
-from app.memory import MAX_PLAYERS, MemoryStore, envelope, nickname
+from app.memory import JST, MAX_PLAYERS, Guest, MemoryStore, envelope, nickname
 from tlmn_engine.catalog import raw_catalog
 from tlmn_engine.rules_config import GROUP_LABELS, INVARIANTS, SCHEMA_VERSION, field_specs
+
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class NicknameBody(BaseModel):
@@ -151,6 +156,12 @@ def create_app(store: MemoryStore | None = None, static_dir: str | Path | None =
         value = request.headers.get("authorization", "")
         return store.authenticate(value[7:] if value.startswith("Bearer ") else None)
 
+    def record_guest_login(guest: Guest) -> None:
+        hour = datetime.fromtimestamp(store.clock(), JST).strftime("%Y-%m-%dT%H:00+09:00")
+        if hour != guest.last_login_hour:
+            guest.last_login_hour = hour
+            logger.info("TLMN_GUEST_LOGIN hour_jst=%s", hour)
+
     @app.get("/api/health")
     async def health():
         return dict(
@@ -172,12 +183,15 @@ def create_app(store: MemoryStore | None = None, static_dir: str | Path | None =
             raise AppError(429, "RATE_LIMITED", "Tạo quá nhiều phiên, hãy thử lại sau")
         async with store.lock:
             guest, token = store.create_guest(body.nickname)
+            record_guest_login(guest)
             return {**store.profile(guest), "token": token}
 
     @app.get("/api/guests/me")
     async def me(request: Request):
         async with store.lock:
-            return store.profile(auth(request))
+            guest = auth(request)
+            record_guest_login(guest)
+            return store.profile(guest)
 
     @app.patch("/api/guests/me")
     async def rename(body: NicknameBody, request: Request):

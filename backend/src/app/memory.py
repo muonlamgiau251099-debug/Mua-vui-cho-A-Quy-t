@@ -84,6 +84,7 @@ class Guest:
     name: str
     last_seen: float = field(default_factory=time.time)
     day: str = ""
+    last_login_hour: str = ""
 
 
 @dataclass

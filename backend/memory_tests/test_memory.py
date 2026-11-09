@@ -34,6 +34,27 @@ def guest(client, name):
     return result, {"Authorization": f"Bearer {result['token']}"}
 
 
+def test_guest_login_is_logged_once_per_hour_without_guest_details(caplog):
+    now = datetime(2026, 11, 9, 20, 59, tzinfo=ZoneInfo("Asia/Tokyo")).timestamp()
+    caplog.set_level("INFO", logger="uvicorn.error")
+
+    with TestClient(create_app(MemoryStore(clock=lambda: now))) as client:
+        assert client.get("/api/guests/me").status_code == 401
+        assert client.post("/api/guests", json={"nickname": "!"}).status_code == 422
+        _, headers = guest(client, "Private name")
+        assert client.get("/api/guests/me", headers=headers).status_code == 200
+        guest(client, "Second guest")
+        now += 60
+        for _ in range(2):
+            assert client.get("/api/guests/me", headers=headers).status_code == 200
+
+    assert [r.message for r in caplog.records if r.name == "uvicorn.error"] == [
+        "TLMN_GUEST_LOGIN hour_jst=2026-11-09T20:00+09:00",
+        "TLMN_GUEST_LOGIN hour_jst=2026-11-09T20:00+09:00",
+        "TLMN_GUEST_LOGIN hour_jst=2026-11-09T21:00+09:00",
+    ]
+
+
 def setup_players(client, count=4):
     players = [guest(client, f"Test {i}") for i in range(count)]
     room = client.post("/api/rooms", headers=players[0][1]).json()
