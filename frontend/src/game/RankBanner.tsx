@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SeatState } from "../api/guest";
 import type { GameResult, LiveGame } from "./types";
 
-type Rank = 1 | 2 | 3 | 4;
+type Rank = 1 | 2 | 4; // không có thông báo hạng Ba: tránh trùng với thông báo Bét lúc hết ván
 type Item = { id: string; rank: Rank; name: string };
 
 const AUTO_CLOSE_MS = 3000;
@@ -11,7 +11,6 @@ const MAX_QUEUE = 6;
 const THEME: Record<Rank, { title: string; sub: string; crown: string; side: string }> = {
   1: { title: "CHAMPION!", sub: "NHẤT!", crown: "👑", side: "🏆" },
   2: { title: "AMAZING!", sub: "HẠNG NHÌ!", crown: "👑", side: "🥈" },
-  3: { title: "GREAT JOB!", sub: "HẠNG BA!", crown: "👑", side: "🥉" },
   4: { title: "HƠI ĐEN!", sub: "Bét mất rồi !", crown: "💧", side: "😥" },
 };
 
@@ -23,7 +22,7 @@ type Props = { game: LiveGame | null; result: GameResult | null; seats: SeatStat
  * Thông báo thứ hạng ~3 giây cho mọi người (bấm "Xác nhận" để tắt sớm). Không hiện điểm: điểm cuối cùng
  * nằm ở bảng kết quả khi hết ván.
  * - Nhất / Nhì: lúc người đó hết bài giữa ván (sự kiện PLAYER_FINISHED).
- * - Ba / Bét: khi ván kết thúc bình thường (kể cả người cóng là Bét).
+ * - Bét: khi ván kết thúc bình thường (kể cả người cóng là Bét). Hạng Ba không có thông báo riêng.
  */
 export function RankBanner({ game, result, seats }: Props) {
   const [queue, setQueue] = useState<Item[]>([]);
@@ -55,7 +54,7 @@ export function RankBanner({ game, result, seats }: Props) {
     enqueue(items);
   }, [game, seats, enqueue]);
 
-  // Ván kết thúc bình thường: công bố Ba và Bét (kể cả người cóng).
+  // Ván kết thúc bình thường: chỉ công bố Bét (kể cả người cóng).
   useEffect(() => {
     if (!result) return;
     const key = `ended:${result.gameId}`;
@@ -66,10 +65,8 @@ export function RankBanner({ game, result, seats }: Props) {
     const items: Item[] = [];
     r.players.forEach((p) => {
       const base = { name: seatName(seats, p.seat) };
-      if (p.status === "CONG" || (p.status === "FINISHED" && p.rank === 4)) {
+      if (p.status === "CONG" || (p.status === "FINISHED" && p.rank === r.players.length)) { // hạng cuối: 4 (ván 4 người) hoặc 3
         items.push({ ...base, id: `${result.gameId}:${p.seat}:4`, rank: 4 });
-      } else if (p.status === "FINISHED" && p.rank === 3) {
-        items.push({ ...base, id: `${result.gameId}:${p.seat}:3`, rank: 3 });
       }
     });
     enqueue(items.sort((a, b) => a.rank - b.rank));

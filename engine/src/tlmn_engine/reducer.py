@@ -6,13 +6,12 @@ Thuần, deterministic: không đọc đồng hồ, không random; state cũ kh�
 from dataclasses import dataclass
 from typing import Any
 
-from tlmn_engine.beats import MoveRejected, can_beat, can_interrupt
-from tlmn_engine.cards import THREE_CLUBS, THREE_SPADES
-from tlmn_engine.combos import Combo, ComboType, classify
+from tlmn_engine.beats import MoveRejected, can_beat, can_interrupt, target_value
+from tlmn_engine.cards import THREE_SPADES, TWO_RANK, rank
+from tlmn_engine.combos import ChopCategory, Combo, ComboType, classify
 from tlmn_engine.rules_config import RuleConfig
 from tlmn_engine.scoring import instant_win_transfers, normal_end_transfers, settle_chain
 from tlmn_engine.state import (
-    SEATS,
     ChopLink,
     EndType,
     GameState,
@@ -72,7 +71,8 @@ def apply(state: GameState, action: Action, rules: RuleConfig, now: float) -> tu
                 raise MoveRejected("TIMER_NOT_EXPIRED", "Chưa hết giờ lượt")
             seat = s.current
             if s.trick.top is None:  # D13: người mở vòng hết giờ → tự đánh lá đơn nhỏ nhất
-                card = THREE_CLUBS if must_include_three_clubs(s, rules, seat) else min(s.players[seat].hand)
+                must = must_include_three_clubs(s, rules, seat)
+                card = s.opening_card if must else min(s.players[seat].hand)
                 _play(s, rules, now, seat, (card,), events, auto=True)
             else:  # D9: hết giờ = mất lượt
                 _pass(s, rules, now, seat, events, auto=True)
@@ -95,7 +95,14 @@ def must_include_three_clubs(s: GameState, rules: RuleConfig, seat: int) -> bool
         s.first_move_pending
         and s.opening_mode == "THREE_CLUBS"
         and rules.opening.mustIncludeThreeClubs
-        and THREE_CLUBS in s.players[seat].hand
+        and s.opening_card in s.players[seat].hand
+    )
+
+
+def _next_active(s: GameState, after: int) -> int:
+    """Người còn chơi kế tiếp sau ghế `after` theo chiều kim đồng hồ."""
+    return next(
+        x for x in clockwise_after(after, len(s.players)) if s.players[x].status == PlayerStatus.ACTIVE
     )
 
 
@@ -114,7 +121,7 @@ def _play(
     *,
     auto: bool,
 ) -> None:
-    if not 0 <= seat < SEATS or s.players[seat].status != PlayerStatus.ACTIVE:
+    if not 0 <= seat < len(s.players) or s.players[seat].status != PlayerStatus.ACTIVE:
         raise MoveRejected("NOT_ACTIVE", "Bạn không còn trong ván")
     hand = s.players[seat].hand
     if len(set(cards)) != len(cards) or not set(cards) <= set(hand):
@@ -129,6 +136,7 @@ def _play(
         trick.top,
         combo,
         must_include_three_clubs=must_include_three_clubs(s, rules, seat),
+        opening_card=s.opening_card,
         top_is_chop=trick.top_is_chop,
         someone_finished=s.someone_finished(),
     )
@@ -145,8 +153,16 @@ def _play(
     s.players[seat].played_count += len(combo.cards)
     if result.scores_as_chop:
         assert trick.top_seat is not None
-        trick.chain.append(ChopLink(seat, trick.top_seat, result.target_value))
+        # Heo đã bị heo khác đè trước đó cũng bị chặt luôn, cộng vào mắt xích này
+        trick.chain.append(ChopLink(seat, trick.top_seat, result.target_value + trick.heo_carry))
+        trick.heo_carry = 0
+    elif trick.top is not None and trick.top.chop_category in (
+        ChopCategory.HEO_SINGLE,
+        ChopCategory.HEO_PAIR,
+    ):
+        trick.heo_carry += target_value(rules, trick.top)  # heo đè heo: heo dưới treo chờ bị chặt
     trick.top, trick.top_seat, trick.top_is_chop = combo, seat, result.scores_as_chop
+    trick.chop_offered.clear()  # bài mới trên bàn → người có 4 đôi thông lại được xét tặng lượt
     trick.passed.discard(seat)  # G12: chặt ngoài lượt → tham gia lại vòng
     s.first_move_pending = False
     events.append(
@@ -182,15 +198,17 @@ def _pass(s: GameState, rules: RuleConfig, now: float, seat: int, events: Events
 def _advance(s: GameState, rules: RuleConfig, now: float, after: int, events: Events) -> None:
     trick = s.trick
     if trick.top is None:  # người mở vòng vừa thoát ván: người kế tiếp mở vòng
-        s.current = next(x for x in clockwise_after(after) if s.players[x].status == PlayerStatus.ACTIVE)
+        s.current = _next_active(s, after)
         trick.leader = s.current
         _start_turn(s, rules, now, events)
         return
     responders = [
         x
-        for x in clockwise_after(after)
+        for x in clockwise_after(after, len(s.players))
         if s.players[x].status == PlayerStatus.ACTIVE and x not in trick.passed and x != trick.top_seat
     ]
+    if not responders:
+        responders = _chop_offer(s, rules, after)
     if responders:
         s.current = responders[0]
         _start_turn(s, rules, now, events)
@@ -198,9 +216,71 @@ def _advance(s: GameState, rules: RuleConfig, now: float, after: int, events: Ev
         _close_trick(s, rules, now, events)
 
 
+# Bài trên bàn mà trước khi đóng vòng sẽ tặng lượt cho người có 4 đôi thông (ID 35, 36, 37, 38, 42).
+_OFFER_TARGETS = (ChopCategory.HEO_SINGLE, ChopCategory.HEO_PAIR, ChopCategory.PS3, ChopCategory.FK)
+
+
+def _chop_offer(s: GameState, rules: RuleConfig, after: int) -> list[int]:
+    """ID 42: 4 đôi thông chặt không cần vòng. Vòng có heo / 3 đôi thông / tứ quý trên bàn mà sắp
+    đóng → tặng lượt cho người (đã mất vòng) đang giữ 4 đôi thông chặt được, theo chiều kim đồng hồ;
+    mỗi người một lần cho mỗi bài trên bàn. Người được tặng tạm vào lại vòng, bỏ thì lại bị khóa."""
+    trick = s.trick
+    if trick.top is None or trick.top.chop_category not in _OFFER_TARGETS:
+        return []
+    for x in clockwise_after(after, len(s.players)):
+        if (
+            s.players[x].status == PlayerStatus.ACTIVE
+            and x != trick.top_seat
+            and x not in trick.chop_offered
+            and _can_chop_with_four_pair_seq(s, rules, x)
+        ):
+            trick.chop_offered.add(x)
+            trick.passed.discard(x)
+            return [x]
+    return []
+
+
+def _four_pair_seqs(hand: list[int]) -> list[Combo]:
+    """Mọi 4 đôi thông lấy được từ bài trên tay; mỗi số chọn 2 lá chất cao nhất."""
+    by_rank: dict[int, list[int]] = {}
+    for card in sorted(hand):
+        by_rank.setdefault(rank(card), []).append(card)
+    found: list[Combo] = []
+    for low in range(TWO_RANK - 3):  # 2 không nằm trong đôi thông (Q-P1-3)
+        if all(len(by_rank.get(r, [])) >= 2 for r in range(low, low + 4)):
+            combo = classify(card for r in range(low, low + 4) for card in by_rank[r][-2:])
+            if combo is not None:
+                found.append(combo)
+    return found
+
+
+def _can_chop_with_four_pair_seq(s: GameState, rules: RuleConfig, seat: int) -> bool:
+    trick = s.trick
+    for combo in _four_pair_seqs(s.players[seat].hand):
+        try:
+            result = can_beat(
+                rules,
+                trick.top,
+                combo,
+                must_include_three_clubs=False,
+                top_is_chop=trick.top_is_chop,
+                someone_finished=s.someone_finished(),
+            )
+        except MoveRejected:
+            continue
+        if can_interrupt(rules, combo, result):
+            return True
+    return False
+
+
 def _settle_open_chain(s: GameState) -> dict[str, Any] | None:
-    transfer = settle_chain(s.trick.chain)
+    chain = s.trick.chain
     s.trick.chain = []
+    if chain and s.players[chain[-1].victim].status == PlayerStatus.FINISHED:
+        # ID 46: người đã về bằng bài bị chặt (heo, đôi heo, hàng) không bị trừ điểm — họ đã hết bài,
+        # không còn cơ hội chặt lại. Người chặt chỉ được quyền đi tiếp, không ai trả cả chuỗi.
+        return None
+    transfer = settle_chain(chain)
     if transfer is None:
         return None
     s.transfers.append(transfer)
@@ -211,10 +291,8 @@ def _close_trick(s: GameState, rules: RuleConfig, now: float, events: Events) ->
     top = s.trick.top_seat
     assert top is not None
     chop = _settle_open_chain(s)
-    if s.players[top].status == PlayerStatus.ACTIVE:
-        leader = top  # ID 14
-    else:  # ID 105, D2: người đánh cuối đã hết bài/thoát → hưởng sái cho người kế tiếp
-        leader = next(x for x in clockwise_after(top) if s.players[x].status == PlayerStatus.ACTIVE)
+    # ID 14: người đánh cuối còn chơi thì mở vòng; ID 105, D2: đã hết bài/thoát → hưởng sái cho người kế tiếp
+    leader = top if s.players[top].status == PlayerStatus.ACTIVE else _next_active(s, top)
     events.append({"type": "TRICK_CLOSED", "winner": top, "nextLeader": leader, "chop": chop})
     s.trick = Trick(leader)
     s.current = leader
@@ -226,11 +304,11 @@ def _used_ranks(s: GameState) -> set[int]:
 
 
 def _next_top_rank(s: GameState) -> int:
-    return min(r for r in range(1, SEATS + 1) if r not in _used_ranks(s))
+    return min(r for r in range(1, len(s.players) + 1) if r not in _used_ranks(s))
 
 
 def _next_bottom_rank(s: GameState) -> int:
-    return max(r for r in range(1, SEATS + 1) if r not in _used_ranks(s))
+    return max(r for r in range(1, len(s.players) + 1) if r not in _used_ranks(s))
 
 
 def _finish_player(
@@ -254,14 +332,14 @@ def _finish_player(
     if player.rank == 1 and rules.penalty.cong.enabled:  # ID 68, 69, D7
         cong = [
             x
-            for x in clockwise_from(seat)
+            for x in clockwise_from(seat, len(s.players))
             if s.players[x].status == PlayerStatus.ACTIVE and s.players[x].played_count == 0
         ]
         for x in cong:
             s.players[x].status = PlayerStatus.CONG
             s.players[x].rank = _next_bottom_rank(s)
         if cong:
-            events.append({"type": "CONG", "seats": cong, "allTable": len(cong) == SEATS - 1})
+            events.append({"type": "CONG", "seats": cong, "allTable": len(cong) == len(s.players) - 1})
 
     _maybe_end(s, rules, events)
 
@@ -307,10 +385,10 @@ def _end_game(
         assert winners is not None
         for x, p in enumerate(s.players):
             if x not in winners:
-                p.rank = SEATS  # D10: 3 người còn lại thua
+                p.rank = len(s.players)  # D10: những người còn lại thua
         s.transfers.extend(
             instant_win_transfers(
-                winners, rules, rules.scoring.blindThreeSpadesPerLoser, "BLIND_THREE_SPADES"
+                winners, rules, rules.scoring.blindThreeSpadesPerLoser, "BLIND_THREE_SPADES", len(s.players)
             )
         )
     else:

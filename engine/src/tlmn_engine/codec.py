@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from tlmn_engine.cards import THREE_CLUBS
 from tlmn_engine.combos import classify
 from tlmn_engine.reducer import Action, Forfeit, Pass, Play, ResumeTimer, Timeout
 from tlmn_engine.rules_config import sha256_hex
@@ -20,7 +21,7 @@ from tlmn_engine.state import (
 
 def state_to_json(s: GameState) -> dict[str, Any]:
     t = s.trick
-    return {
+    data: dict[str, Any] = {
         "players": [
             {"hand": list(p.hand), "playedCount": p.played_count, "status": p.status.value, "rank": p.rank}
             for p in s.players
@@ -34,6 +35,7 @@ def state_to_json(s: GameState) -> dict[str, Any]:
             "topIsChop": t.top_is_chop,
             "passed": sorted(t.passed),
             "chain": [[link.chopper, link.victim, link.value] for link in t.chain],
+            "heoCarry": t.heo_carry,
         },
         "firstMovePending": s.first_move_pending,
         "turnDeadline": s.turn_deadline,
@@ -44,6 +46,14 @@ def state_to_json(s: GameState) -> dict[str, Any]:
         "transfers": [t.to_json() for t in s.transfers],
         "seq": s.seq,
     }
+    # Chỉ ghi khi khác mặc định: snapshot / hash của ván 4 người cũ (mở bằng 3♣, chia hết 52 lá) không đổi.
+    if s.opening_card != THREE_CLUBS:
+        data["openingCard"] = s.opening_card
+    if s.undealt:
+        data["undealt"] = list(s.undealt)
+    if t.chop_offered:  # trường mới: ván lưu bằng bản cũ vẫn khớp hash khi khôi phục
+        data["trick"]["chopOffered"] = sorted(t.chop_offered)
+    return data
 
 
 def state_from_json(d: dict[str, Any]) -> GameState:
@@ -65,6 +75,8 @@ def state_from_json(d: dict[str, Any]) -> GameState:
             top_is_chop=t["topIsChop"],
             passed=set(t["passed"]),
             chain=[ChopLink(*link) for link in t["chain"]],
+            heo_carry=t.get("heoCarry", 0),  # snapshot cũ chưa có trường này
+            chop_offered=set(t.get("chopOffered", [])),
         ),
         first_move_pending=d["firstMovePending"],
         turn_deadline=d["turnDeadline"],
@@ -76,6 +88,8 @@ def state_from_json(d: dict[str, Any]) -> GameState:
             Transfer(x["from"], x["to"], x["amount"], x["reason"], x["detail"]) for x in d["transfers"]
         ],
         seq=d["seq"],
+        undealt=list(d.get("undealt", [])),  # snapshot cũ (ván 4 người) chưa có trường này
+        opening_card=d.get("openingCard", THREE_CLUBS),
     )
 
 

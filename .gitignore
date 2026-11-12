@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+
+# Bí mật / môi trường
+.env
+.env.*
+!.env.example
+
+# File khóa tạm của Excel/Office khi đang mở file
+~$*
+
+# Hệ điều hành / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Bản sao lưu DB khi chạy docker compose trên máy
+deploy/backups/
+
+*.tsbuildinfo
