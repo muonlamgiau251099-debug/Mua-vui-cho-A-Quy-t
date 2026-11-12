@@ -72,6 +72,7 @@ class Trick:
     passed: set[int] = field(default_factory=set)
     chain: list[ChopLink] = field(default_factory=list)
     heo_carry: int = 0  # giá trị các heo đã bị heo khác đè trong vòng, chưa vào chuỗi chặt
+    chop_offered: set[int] = field(default_factory=set)  # đã được tặng lượt chặt 4 đôi thông với bài này
 
     def clone(self) -> "Trick":
         return Trick(
@@ -82,6 +83,7 @@ class Trick:
             set(self.passed),
             list(self.chain),
             self.heo_carry,
+            set(self.chop_offered),
         )
 
 

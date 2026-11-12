@@ -192,6 +192,78 @@ def test_four_pair_seq_interrupts_out_of_turn_even_after_passing() -> None:
     assert (chop["from"], chop["to"], chop["amount"]) == (A, C, 100)  # ID 81, 82: bị chặt heo đen
 
 
+@pytest.mark.rule(42)
+def test_heo_trick_gives_four_pair_seq_holder_a_turn_before_closing() -> None:
+    # A mở 5, B và C bỏ (mất vòng), D đè heo, A bỏ → vòng chưa đóng, tặng lượt cho C (có 4 đôi thông)
+    t = Table(make_game(["5S 3S", "4S 6S", f"{PS4} 3D", "2S 7H"]))
+    t.play(A, "5S")
+    t.pass_(B)
+    t.pass_(C)
+    t.play(D, "2S")
+    t.pass_(A)
+    assert t.of_type("TRICK_CLOSED") == []
+    assert t.state.current == C
+    events = t.play(C, PS4)
+    assert events[0]["kind"] == "CHOP"
+    t.pass_(D)  # A, B đã bỏ lượt từ trước → chỉ còn D đáp lại
+    chop = t.of_type("TRICK_CLOSED")[-1]["chop"]
+    assert (chop["from"], chop["to"], chop["amount"]) == (D, C, 100)
+
+
+@pytest.mark.rule(42)
+def test_gifted_chop_turn_is_given_once_and_may_be_declined() -> None:
+    t = Table(make_game(["5S 3S", "4S 6S", f"{PS4} 3D", "2S 7H"]))
+    t.play(A, "5S")
+    t.pass_(B)
+    t.pass_(C)
+    t.play(D, "2S")
+    t.pass_(A)
+    assert t.state.current == C
+    t.pass_(C)  # C không chặt
+    closed = t.of_type("TRICK_CLOSED")[-1]
+    assert (closed["winner"], closed["chop"]) == (D, None)
+    assert t.state.current == D
+
+
+@pytest.mark.rule(42)
+@pytest.mark.parametrize("target", [PS3, FK])
+def test_three_pair_seq_and_four_kind_tricks_also_gift_a_chop_turn(target: str) -> None:
+    t = Table(make_game([f"{target} 3S", "4S 5S", f"{PS4} 3D", "7H 8H"]))
+    t.play(A, target)
+    t.pass_(B)
+    t.pass_(C)
+    t.pass_(D)
+    assert t.state.current == C
+    assert t.play(C, PS4)[0]["kind"] == "CHOP"
+
+
+@pytest.mark.rule(42)
+def test_no_gifted_turn_for_plain_cards_bigger_four_pair_seq_or_rule_off() -> None:
+    small = "3D 3H 4D 4H 5D 5H 6D 6H"
+    t = Table(make_game(["9S 3S", "4S 6S", f"{small} 7C", f"{PS4} 7H"]))
+    t.play(A, "9S")  # bài thường → đóng vòng như cũ
+    t.pass_(B)
+    t.pass_(C)
+    t.pass_(D)
+    assert t.of_type("TRICK_CLOSED")[-1]["winner"] == A
+
+    t = Table(make_game([f"{small} 3S", "4S 5S", f"{PS4} 7C", "7H 8H"]))
+    t.play(A, small)  # 4 đôi thông trên bàn: không nằm trong danh sách tặng lượt
+    t.pass_(B)
+    t.pass_(C)
+    t.pass_(D)
+    assert t.of_type("TRICK_CLOSED")[-1]["winner"] == A
+
+    off = rules_with(**{"chop.fourPairSeq.outOfTurn": False})
+    t = Table(make_game(["5S 3S", "4S 6S", f"{PS4} 3D", "2S 7H"]), rules=off)
+    t.play(A, "5S")
+    t.pass_(B)
+    t.pass_(C)
+    t.play(D, "2S")
+    t.pass_(A)
+    assert t.of_type("TRICK_CLOSED")[-1]["winner"] == D
+
+
 @pytest.mark.rule(43)
 def test_four_kind_and_three_pair_seq_cannot_interrupt() -> None:
     t = Table(make_game(["2S 3S", "4S 5S", f"{FK} {PS3}", "7H 8H"]))
@@ -255,6 +327,56 @@ def test_four_level_chain_last_victim_pays_800() -> None:
     # 200 (heo đỏ) + 200 (3 đôi thông) + 400 (tứ quý) → C gánh hết cho D
     assert (chop["from"], chop["to"], chop["amount"]) == (C, D, 800)
     assert t.net == [0, 0, -800, 800]
+
+
+@pytest.mark.rule(46, 48, 105)
+def test_finishing_with_heo_then_chopped_costs_nothing() -> None:
+    t = Table(make_game(["5S 4S", "2S", f"{PS3} 3D", "9H 10H"]))
+    t.play(A, "5S")
+    t.play(B, "2S")  # B về nhất bằng heo đen
+    t.play(C, PS3)
+    t.pass_(D)
+    t.pass_(A)
+    closed = t.of_type("TRICK_CLOSED")[-1]
+    assert (closed["winner"], closed["nextLeader"], closed["chop"]) == (C, C, None)
+    assert t.state.transfers == []
+
+
+@pytest.mark.rule(46, 48)
+def test_finishing_with_pair_of_heo_then_chopped_costs_nothing() -> None:
+    t = Table(make_game(["5S 5C 4S", "2S 2H", f"{FK} 3D", "9H 10H"]))
+    t.play(A, "5S 5C")
+    t.play(B, "2S 2H")  # B về nhất bằng đôi heo
+    t.play(C, FK)
+    t.pass_(D)
+    t.pass_(A)
+    assert t.of_type("TRICK_CLOSED")[-1]["chop"] is None
+    assert t.state.transfers == []
+
+
+@pytest.mark.rule(41, 46, 48)
+def test_finishing_with_chop_then_chopped_back_costs_nothing() -> None:
+    t = Table(make_game(["2H 3S", PS3, f"{FK} 4D", "7H 8H"]))
+    t.play(A, "2H")
+    t.play(B, PS3)  # B chặt heo bằng lá cuối → về nhất
+    t.play(C, FK)  # C chặt chồng người đã về
+    t.pass_(D)
+    t.pass_(A)
+    assert t.of_type("TRICK_CLOSED")[-1]["chop"] is None
+    assert t.state.transfers == []
+
+
+@pytest.mark.rule(46)
+def test_heo_chopped_while_owner_still_has_cards_still_pays() -> None:
+    t = Table(make_game(["5S 4S", "2S 3D", f"{PS3} 3H", "9H 10H"]))
+    t.play(A, "5S")
+    t.play(B, "2S")  # B vẫn còn bài
+    t.play(C, PS3)
+    t.pass_(D)
+    t.pass_(A)
+    t.pass_(B)
+    chop = t.of_type("TRICK_CLOSED")[-1]["chop"]
+    assert (chop["from"], chop["to"], chop["amount"]) == (B, C, 100)
 
 
 def test_chopped_player_can_chop_back_in_turn() -> None:

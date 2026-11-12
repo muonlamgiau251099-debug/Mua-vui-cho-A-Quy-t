@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from tlmn_engine.beats import MoveRejected, can_beat, can_interrupt, target_value
-from tlmn_engine.cards import THREE_SPADES
+from tlmn_engine.cards import THREE_SPADES, TWO_RANK, rank
 from tlmn_engine.combos import ChopCategory, Combo, ComboType, classify
 from tlmn_engine.rules_config import RuleConfig
 from tlmn_engine.scoring import instant_win_transfers, normal_end_transfers, settle_chain
@@ -162,6 +162,7 @@ def _play(
     ):
         trick.heo_carry += target_value(rules, trick.top)  # heo đè heo: heo dưới treo chờ bị chặt
     trick.top, trick.top_seat, trick.top_is_chop = combo, seat, result.scores_as_chop
+    trick.chop_offered.clear()  # bài mới trên bàn → người có 4 đôi thông lại được xét tặng lượt
     trick.passed.discard(seat)  # G12: chặt ngoài lượt → tham gia lại vòng
     s.first_move_pending = False
     events.append(
@@ -206,6 +207,8 @@ def _advance(s: GameState, rules: RuleConfig, now: float, after: int, events: Ev
         for x in clockwise_after(after, len(s.players))
         if s.players[x].status == PlayerStatus.ACTIVE and x not in trick.passed and x != trick.top_seat
     ]
+    if not responders:
+        responders = _chop_offer(s, rules, after)
     if responders:
         s.current = responders[0]
         _start_turn(s, rules, now, events)
@@ -213,9 +216,71 @@ def _advance(s: GameState, rules: RuleConfig, now: float, after: int, events: Ev
         _close_trick(s, rules, now, events)
 
 
+# Bài trên bàn mà trước khi đóng vòng sẽ tặng lượt cho người có 4 đôi thông (ID 35, 36, 37, 38, 42).
+_OFFER_TARGETS = (ChopCategory.HEO_SINGLE, ChopCategory.HEO_PAIR, ChopCategory.PS3, ChopCategory.FK)
+
+
+def _chop_offer(s: GameState, rules: RuleConfig, after: int) -> list[int]:
+    """ID 42: 4 đôi thông chặt không cần vòng. Vòng có heo / 3 đôi thông / tứ quý trên bàn mà sắp
+    đóng → tặng lượt cho người (đã mất vòng) đang giữ 4 đôi thông chặt được, theo chiều kim đồng hồ;
+    mỗi người một lần cho mỗi bài trên bàn. Người được tặng tạm vào lại vòng, bỏ thì lại bị khóa."""
+    trick = s.trick
+    if trick.top is None or trick.top.chop_category not in _OFFER_TARGETS:
+        return []
+    for x in clockwise_after(after, len(s.players)):
+        if (
+            s.players[x].status == PlayerStatus.ACTIVE
+            and x != trick.top_seat
+            and x not in trick.chop_offered
+            and _can_chop_with_four_pair_seq(s, rules, x)
+        ):
+            trick.chop_offered.add(x)
+            trick.passed.discard(x)
+            return [x]
+    return []
+
+
+def _four_pair_seqs(hand: list[int]) -> list[Combo]:
+    """Mọi 4 đôi thông lấy được từ bài trên tay; mỗi số chọn 2 lá chất cao nhất."""
+    by_rank: dict[int, list[int]] = {}
+    for card in sorted(hand):
+        by_rank.setdefault(rank(card), []).append(card)
+    found: list[Combo] = []
+    for low in range(TWO_RANK - 3):  # 2 không nằm trong đôi thông (Q-P1-3)
+        if all(len(by_rank.get(r, [])) >= 2 for r in range(low, low + 4)):
+            combo = classify(card for r in range(low, low + 4) for card in by_rank[r][-2:])
+            if combo is not None:
+                found.append(combo)
+    return found
+
+
+def _can_chop_with_four_pair_seq(s: GameState, rules: RuleConfig, seat: int) -> bool:
+    trick = s.trick
+    for combo in _four_pair_seqs(s.players[seat].hand):
+        try:
+            result = can_beat(
+                rules,
+                trick.top,
+                combo,
+                must_include_three_clubs=False,
+                top_is_chop=trick.top_is_chop,
+                someone_finished=s.someone_finished(),
+            )
+        except MoveRejected:
+            continue
+        if can_interrupt(rules, combo, result):
+            return True
+    return False
+
+
 def _settle_open_chain(s: GameState) -> dict[str, Any] | None:
-    transfer = settle_chain(s.trick.chain)
+    chain = s.trick.chain
     s.trick.chain = []
+    if chain and s.players[chain[-1].victim].status == PlayerStatus.FINISHED:
+        # ID 46: người đã về bằng bài bị chặt (heo, đôi heo, hàng) không bị trừ điểm — họ đã hết bài,
+        # không còn cơ hội chặt lại. Người chặt chỉ được quyền đi tiếp, không ai trả cả chuỗi.
+        return None
+    transfer = settle_chain(chain)
     if transfer is None:
         return None
     s.transfers.append(transfer)

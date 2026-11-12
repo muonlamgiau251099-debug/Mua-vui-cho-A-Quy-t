@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { RoomState, SeatState } from "../api/guest";
 import { Modal } from "../game/Modal";
+import { avatarFor } from "../lib/avatars";
 import { COMPACT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import { RulesView } from "../pages/RulesView";
 
@@ -67,7 +68,7 @@ function SeatCard({ seat, pos, isOwner, isYou, now, onKick }: SeatCardProps) {
     <li className={`seat-card pos-${pos}${isYou ? " you" : ""}${seat.occupied ? "" : " empty"}${ready ? " is-ready" : ""}`}>
       <span className="avatar-wrap">
         <span className="avatar" aria-hidden="true">
-          {seat.occupied ? (seat.nickname ?? "?").charAt(0).toUpperCase() : "+"}
+          {seat.occupied ? <img src={avatarFor(seat.seatNo)} alt="" /> : "+"}
         </span>
         {seat.occupied && onKick && (
           <button

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { SeatState } from "../api/guest";
+import { avatarFor } from "../lib/avatars";
 import { COMPACT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import {
   cardLabel,
@@ -494,7 +495,7 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
               className={`opponent pos-${pos}${state.current === seat ? " turn" : ""}`}
             >
               <span className="avatar" aria-hidden="true">
-                {name(seat).charAt(0).toUpperCase()}
+                <img src={avatarFor(seat)} alt="" />
               </span>
               {chats?.[seat] && (
                 <SpeechBubble key={chats[seat]!.key} text={chats[seat]!.text} tail={pos === "top" ? "side" : (pos as "left" | "right")} />
@@ -543,7 +544,7 @@ export function GameTable({ game, seats, canAct, error, onPlay, onPass, chats, o
           <span className="avatar-wrap">
             {chats?.[me] && <SpeechBubble key={chats[me]!.key} text={chats[me]!.text} tail="side" />}
             <span className="avatar" aria-hidden="true">
-              {(seats[me]?.nickname ?? "B").charAt(0).toUpperCase()}
+              <img src={avatarFor(me)} alt="" />
             </span>
           </span>
           <span className="my-name">Bạn</span>

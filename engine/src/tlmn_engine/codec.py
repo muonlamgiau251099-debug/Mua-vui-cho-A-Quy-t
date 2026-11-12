@@ -51,6 +51,8 @@ def state_to_json(s: GameState) -> dict[str, Any]:
         data["openingCard"] = s.opening_card
     if s.undealt:
         data["undealt"] = list(s.undealt)
+    if t.chop_offered:  # trường mới: ván lưu bằng bản cũ vẫn khớp hash khi khôi phục
+        data["trick"]["chopOffered"] = sorted(t.chop_offered)
     return data
 
 
@@ -74,6 +76,7 @@ def state_from_json(d: dict[str, Any]) -> GameState:
             passed=set(t["passed"]),
             chain=[ChopLink(*link) for link in t["chain"]],
             heo_carry=t.get("heoCarry", 0),  # snapshot cũ chưa có trường này
+            chop_offered=set(t.get("chopOffered", [])),
         ),
         first_move_pending=d["firstMovePending"],
         turn_deadline=d["turnDeadline"],
