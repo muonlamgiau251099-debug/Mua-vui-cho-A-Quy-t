@@ -5,6 +5,7 @@ import { ApiError, errorMessage } from "../api/client";
 import { guestApi, roomApi, tokenStore } from "../api/guest";
 import { COMPACT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import { useRoomSocket } from "../realtime/useRoomSocket";
+import { setDisguiseTurn, turnFromGame } from "../game/DisguiseScreen";
 import { GameResultPanel } from "../game/GameResultPanel";
 import { GameTable } from "../game/GameTable";
 import { RankBanner } from "../game/RankBanner";
@@ -36,6 +37,13 @@ export function RoomPage() {
   }, [shouldJoin, join]);
 
   const socket = useRoomSocket(seatedHere ? roomId : null, seatedHere ? tokenStore.get() : null);
+
+  // Báo lượt chơi cho màn hình ngụy trang (nằm ở gốc ứng dụng); rời phòng thì xóa.
+  const { game: liveGame, clockOffset } = socket;
+  useEffect(() => {
+    setDisguiseTurn(turnFromGame(liveGame, clockOffset));
+  }, [liveGame, clockOffset]);
+  useEffect(() => () => setDisguiseTurn(turnFromGame(null, 0)), []);
 
   const leaveToLobby = async (action: (id: string) => Promise<void>) => {
     try {
