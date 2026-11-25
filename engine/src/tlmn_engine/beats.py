@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from tlmn_engine.cards import THREE_CLUBS, is_red
+from tlmn_engine.cards import THREE_CLUBS, card_label, is_red
 from tlmn_engine.combos import ChopCategory, Combo
 from tlmn_engine.rules_config import RuleConfig
 
@@ -65,13 +65,19 @@ def can_beat(
     play: Combo,
     *,
     must_include_three_clubs: bool,
+    opening_card: int = THREE_CLUBS,
     top_is_chop: bool,
     someone_finished: bool,
 ) -> BeatResult:
     """Không xét lượt — lượt kiểm tra ở reducer (can_interrupt cho 4 đôi thông)."""
     if top is None:
-        if must_include_three_clubs and THREE_CLUBS not in play.cards:  # ID 8
-            raise MoveRejected("MUST_INCLUDE_THREE_CLUBS", "Nước đầu tiên của ván phải có 3♣")
+        # ID 8: nước đầu của ván phải có lá mở ván (3♣; hoặc lá thay thế khi 3♣ không được chia cho ai)
+        if must_include_three_clubs and opening_card not in play.cards:
+            if opening_card == THREE_CLUBS:
+                raise MoveRejected("MUST_INCLUDE_THREE_CLUBS", "Nước đầu tiên của ván phải có 3♣")
+            raise MoveRejected(
+                "MUST_INCLUDE_OPENING_CARD", f"Nước đầu tiên của ván phải có {card_label(opening_card)}"
+            )
         return BeatResult(BeatKind.LEAD)
 
     target = top.chop_category

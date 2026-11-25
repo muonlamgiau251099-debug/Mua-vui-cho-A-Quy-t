@@ -16,6 +16,7 @@ export type GameView = {
   current: number | null;
   turnDeadline: number | null; // epoch giây (giờ server)
   firstMovePending: boolean;
+  openingCard?: number; // lá người đánh đầu phải có (mặc định 3♣; lá khác khi 3♣ không được chia)
   trick: {
     leader: number;
     top: number[] | null;

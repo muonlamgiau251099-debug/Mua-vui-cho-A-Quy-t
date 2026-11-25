@@ -416,8 +416,8 @@
   "default": "true",
   "defaultSource": "Excel (D) + G3",
   "status": "ĐÃ CHỐT",
-  "dependencies": "",
-  "notes": ""
+  "dependencies": "48, 83",
+  "notes": "Người đã về bằng heo/đôi heo/hàng mà bị chặt (kể cả chặt chồng) thì không bị trừ điểm; người chặt chỉ được quyền đi tiếp (yêu cầu 2026-11-11)"
  },
  "47": {
   "ruleKey": "chop.allowWhenTargetHasOneCard",

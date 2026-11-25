@@ -60,6 +60,7 @@ def legal_for(state: GameState, seat: int, rules: RuleConfig, rng: random.Random
                 state.trick.top,
                 combo,
                 must_include_three_clubs=must_include_three_clubs(state, rules, seat),
+                opening_card=state.opening_card,
                 top_is_chop=state.trick.top_is_chop,
                 someone_finished=state.someone_finished(),
             )
@@ -92,7 +93,7 @@ def interrupters(state: GameState, rules: RuleConfig, rng: random.Random) -> lis
 
 def choose_action(state: GameState, rules: RuleConfig, rng: random.Random, forfeits: int) -> Action:
     roll = rng.random()
-    if roll < 0.01 and forfeits < 2:
+    if roll < 0.01 and forfeits < len(state.players) - 2:  # luôn còn ít nhất 2 người để ván tiếp diễn
         return Forfeit(rng.choice(state.active_seats()))
     if roll < 0.08:
         return Timeout()
@@ -112,7 +113,7 @@ def assert_no_leak(state: GameState) -> None:
     public = project_public(state)
     if state.phase == Phase.PLAYING:
         assert "hands" not in public
-        for seat in range(4):
+        for seat in range(len(state.players)):
             private = project_private(state, seat)
             assert private["yourHand"] == state.players[seat].hand
             others = {c for s, p in enumerate(state.players) if s != seat for c in p.hand}
@@ -121,14 +122,15 @@ def assert_no_leak(state: GameState) -> None:
 
 
 def play_random_game(
-    seed: int, rules: RuleConfig = RULES
+    seed: int, rules: RuleConfig = RULES, players: int = 4
 ) -> tuple[GameState, list[tuple[Action, float]], GameState]:
     rng = random.Random(seed)
     deck = list(range(52))
     for _ in range(100):
         rng.shuffle(deck)
         opening = rng.choice([OpeningMode.THREE_CLUBS, OpeningMode.WINNER_LEADS])
-        outcome = start_game(deck, opening, rules, now=0.0, previous_winner=rng.randrange(4))
+        winner = rng.randrange(players)
+        outcome = start_game(deck, opening, rules, now=0.0, previous_winner=winner, players=players)
         if outcome.result != DealResult.REDEAL:
             break
     assert outcome.state is not None
@@ -157,7 +159,7 @@ def check_final(final: GameState) -> None:
     assert final.phase in (Phase.FINISHED, Phase.CANCELLED)
     assert sum(final.net()) == 0  # ID 133
     if final.end_type == EndType.NORMAL:
-        assert sorted(p.rank or 0 for p in final.players) == [1, 2, 3, 4]
+        assert sorted(p.rank or 0 for p in final.players) == list(range(1, len(final.players) + 1))
         first = next(s for s, p in enumerate(final.players) if p.rank == 1)
         assert final.players[first].status == PlayerStatus.FINISHED
         assert not final.players[first].hand
@@ -204,6 +206,56 @@ def test_timeouts_alone_always_finish_the_game() -> None:
         outcome = start_game(deck, OpeningMode.WINNER_LEADS, RULES, now=0.0, previous_winner=0)
         state = outcome.state
         assert state is not None
+        steps = 0
+        while state.phase == Phase.PLAYING:
+            state, _ = apply(state, Timeout(), RULES, state.turn_deadline or 0.0)
+            check_invariants(state)
+            steps += 1
+            assert steps < 400
+        assert sum(state.net()) == 0
+
+
+@settings(max_examples=GAMES, deadline=None, derandomize=True)
+@given(seed=st.integers(min_value=0, max_value=2**32 - 1))
+def test_random_three_player_games_keep_invariants_and_replay_identically(seed: int) -> None:
+    """Ván 3 người: 39 lá chia + 13 lá thừa đủ 52 lá, không lộ bài, zero-sum, hạng 1–3, replay giống hệt."""
+    initial, history, final = play_random_game(seed, players=3)
+    assert len(initial.players) == 3 and len(initial.undealt) == 13
+    check_final(final)
+    state = initial
+    for action, now in history:
+        state, _ = apply(state, action, RULES, now)
+    assert project_public(state) == project_public(final)
+    assert [p.hand for p in state.players] == [p.hand for p in final.players]
+
+
+@settings(max_examples=max(50, GAMES // 4), deadline=None, derandomize=True)
+@given(seed=st.integers(min_value=0, max_value=2**32 - 1))
+def test_random_three_player_games_with_admin_variations_stay_zero_sum(seed: int) -> None:
+    rules = rules_with(
+        **{
+            "chop.allowChain": seed % 2 == 0,
+            "penalty.cong.enabled": seed % 5 != 0,
+            "scoring.rank.first": 300,
+            "scoring.rank.last": -300,
+        }
+    )
+    _, _, final = play_random_game(seed, rules, players=3)
+    assert final.phase in (Phase.FINISHED, Phase.CANCELLED)
+    assert sum(final.net()) == 0
+
+
+def test_three_player_timeouts_alone_always_finish_the_game() -> None:
+    for seed in range(50):
+        rng = random.Random(seed)
+        deck = list(range(52))
+        for _ in range(100):
+            rng.shuffle(deck)
+            outcome = start_game(deck, OpeningMode.THREE_CLUBS, RULES, now=0.0, players=3)
+            if outcome.result != DealResult.REDEAL:
+                break
+        state = outcome.state
+        assert state is not None  # luôn có người đánh đầu, kể cả khi 3♣ không được chia
         steps = 0
         while state.phase == Phase.PLAYING:
             state, _ = apply(state, Timeout(), RULES, state.turn_deadline or 0.0)

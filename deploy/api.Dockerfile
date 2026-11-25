@@ -1,33 +1,21 @@
-# Backend FastAPI + rules engine. Build từ thư mục gốc repo:
-#   docker build -f deploy/api.Dockerfile -t tlmn-api .
+FROM node:22-alpine AS frontend
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_PROJECT_ENVIRONMENT=/app/.venv
-
-COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
-
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 STATIC_DIR=/app/frontend/dist
 WORKDIR /app
-# Cài dependency trước (cache layer), rồi mới chép mã nguồn.
-COPY pyproject.toml uv.lock ./
-COPY engine/pyproject.toml engine/pyproject.toml
-COPY backend/pyproject.toml backend/pyproject.toml
-COPY engine/src engine/src
-COPY backend/src backend/src
-RUN uv sync --locked --no-dev --package tlmn-backend
-
-COPY backend/alembic.ini backend/alembic.ini
-COPY backend/migrations backend/migrations
-
+COPY backend/requirements-render.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY engine/src/ /app/engine/src/
+COPY backend/src/app/__init__.py backend/src/app/main.py backend/src/app/memory.py backend/src/app/errors.py backend/src/app/http_security.py /app/backend/src/app/
+COPY backend/src/app/realtime/__init__.py backend/src/app/realtime/chat.py /app/backend/src/app/realtime/
+COPY --from=frontend /build/frontend/dist /app/frontend/dist
+ENV PYTHONPATH=/app/backend/src:/app/engine/src
 RUN useradd --create-home --uid 10001 app
 USER app
-WORKDIR /app/backend
-ENV PATH=/app/.venv/bin:$PATH
-EXPOSE 8000
-
-# Migration chỉ thêm cột/bảng (docs/gd3 §7) nên chạy trước khi khởi động là an toàn.
-# 1 worker: lock theo phòng nằm trong bộ nhớ (ADR-003, G13).
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --app-dir src --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+EXPOSE 10000
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1 --proxy-headers --forwarded-allow-ips='*' --ws-max-size 4096 --ws-max-queue 16 --no-access-log"]

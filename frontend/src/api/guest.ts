@@ -46,6 +46,7 @@ export type RoomState = {
   allReady: boolean;
   rules: { version: number; configHash: string } | null;
   gameId?: string | null;
+  playerCount?: number; // số ghế của phòng: 3 hoặc 4
   session?: SessionSummary | null;
   yourSeat?: number;
 };
@@ -128,6 +129,14 @@ export const roomApi = {
     }),
   leave: (roomId: string) => api<void>(`/api/rooms/${roomId}/leave`, { method: "POST", headers: auth() }),
   close: (roomId: string) => api<void>(`/api/rooms/${roomId}/close`, { method: "POST", headers: auth() }),
+  kick: (roomId: string, seatNo: number) =>
+    api<void>(`/api/rooms/${roomId}/kick`, { method: "POST", body: { seatNo }, headers: auth() }),
+  setPlayerCount: (roomId: string, playerCount: 3 | 4) =>
+    api<{ roomId: string; playerCount: number }>(`/api/rooms/${roomId}/player-count`, {
+      method: "PATCH",
+      body: { playerCount },
+      headers: auth(),
+    }),
   restartSession: (roomId: string) =>
     api<void>(`/api/rooms/${roomId}/sessions/restart`, { method: "POST", headers: auth() }),
 };

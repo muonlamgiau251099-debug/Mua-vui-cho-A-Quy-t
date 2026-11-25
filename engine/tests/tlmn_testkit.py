@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from tlmn_engine.cards import DECK_SIZE, parse_cards
+from tlmn_engine.cards import DECK_SIZE, THREE_CLUBS, parse_cards
 from tlmn_engine.combos import Combo, classify
 from tlmn_engine.invariants import check_invariants
 from tlmn_engine.reducer import Action, Forfeit, Pass, Play, Timeout, apply
@@ -34,6 +34,8 @@ def make_game(
     played_counts: list[int] | None = None,
     top: str | None = None,
     top_seat: int | None = None,
+    undealt: str | None = None,
+    opening_card: str | None = None,
 ) -> GameState:
     """hands: 4 chuỗi như '3C 4D 2H'. Lá không nằm trên tay ai được tính là đã đánh.
 
@@ -42,7 +44,9 @@ def make_game(
     parsed = [sorted(parse_cards(h)) for h in hands]
     held = [c for h in parsed for c in h]
     assert len(held) == len(set(held)), "Lá bài bị trùng giữa các tay"
-    played = [c for c in range(DECK_SIZE) if c not in held]
+    rest = parse_cards(undealt) if undealt else []  # bài thừa không chia (ván 3 người)
+    assert not set(rest) & set(held), "Bài thừa trùng với bài trên tay"
+    played = [c for c in range(DECK_SIZE) if c not in held and c not in rest]
     counts = played_counts or [13 - len(h) for h in parsed]
     players = [PlayerState(h, played_count=n) for h, n in zip(parsed, counts, strict=True)]
     trick = Trick(current)
@@ -56,8 +60,10 @@ def make_game(
         current=current,
         trick=trick,
         first_move_pending=first_move,
+        opening_card=parse_cards(opening_card)[0] if opening_card else THREE_CLUBS,
         turn_deadline=30.0,
         played=played,
+        undealt=sorted(rest),
     )
     assert sum(counts) == len(played), "played_counts phải cộng lại bằng số lá đã đánh"
     check_invariants(state)

@@ -46,3 +46,16 @@ def test_resume_timer_grants_full_turn_and_is_replayable() -> None:
 @pytest.mark.parametrize("action", [Play(1, (4, 9)), Pass(2), Timeout(), Forfeit(3), ResumeTimer()])
 def test_actions_roundtrip(action: object) -> None:
     assert action_from_json(action_to_json(action)) == action  # type: ignore[arg-type]
+
+
+def test_chop_offered_is_only_written_when_set_so_old_game_hashes_still_match() -> None:
+    t = Table(make_game(["5S 3S", "4S 6S", "9D 9H 10D 10H JD JH QD QH 3D", "2S 7H"]))
+    assert "chopOffered" not in state_to_json(t.state)["trick"]  # ván lưu bằng bản cũ khôi phục được
+    t.play(0, "5S")
+    t.pass_(1)
+    t.pass_(2)
+    t.play(3, "2S")
+    t.pass_(0)  # tặng lượt chặt cho ghế 2
+    data = state_to_json(t.state)
+    assert data["trick"]["chopOffered"] == [2]
+    assert state_hash(state_from_json(data)) == state_hash(t.state)

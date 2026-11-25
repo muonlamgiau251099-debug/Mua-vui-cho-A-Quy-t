@@ -1,21 +1,9 @@
-# Môi trường local: chỉ chạy PostgreSQL; backend và frontend chạy trực tiếp trên máy.
-# docker compose -f deploy/docker-compose.dev.yml up -d db
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: tlmn
-      POSTGRES_PASSWORD: tlmn
-      POSTGRES_DB: tlmn
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432"
-    volumes:
-      - tlmn-pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tlmn -d tlmn"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-volumes:
-  tlmn-pgdata:
+      - '8080:10000'
+    init: true
+    restart: unless-stopped

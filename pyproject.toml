@@ -32,7 +32,7 @@ tlmn-engine = { workspace = true }
 tlmn-backend = { workspace = true }
 
 [tool.pytest.ini_options]
-testpaths = ["engine/tests", "backend/tests", "tools/tests"]
+testpaths = ["engine/tests", "backend/memory_tests", "tools/tests"]
 pythonpath = ["backend", "engine/tests"]
 addopts = "-ra --strict-markers --import-mode=importlib"
 asyncio_mode = "auto"

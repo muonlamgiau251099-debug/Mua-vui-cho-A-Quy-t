@@ -16,6 +16,7 @@ def project_public(state: GameState) -> dict[str, Any]:
         "current": state.current if state.phase == Phase.PLAYING else None,
         "turnDeadline": state.turn_deadline,
         "firstMovePending": state.first_move_pending,
+        "openingCard": state.opening_card,  # lá người đánh đầu phải có (3♣ hoặc lá thay thế)
         "trick": {
             "leader": trick.leader,
             "top": list(trick.top.cards) if trick.top else None,

@@ -20,7 +20,7 @@ const CHECK_LABEL: Record<string, string> = {
   rulesHashOk: "Luật của ván không bị sửa",
   replayMatchesStoredHash: "Chơi lại từ log ra đúng trạng thái đã lưu",
   resultMatchesReplay: "Điểm đã lưu khớp kết quả chơi lại",
-  zeroSum: "Tổng điểm 4 người bằng 0",
+  zeroSum: "Tổng điểm của các người chơi bằng 0",
 };
 
 // Đối soát tranh chấp (ID 155): Admin nhập mã ván, hệ thống kiểm tra lại toàn bộ bằng chứng.

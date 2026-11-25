@@ -1,0 +1,80 @@
+/* Màn hình ngụy trang giả Outlook (PC). Phủ kín trang, nằm trên mọi thứ khác. */
+.ol {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #242424;
+  font: 14px/1.3 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+.ol * { box-sizing: border-box; }
+.ol-top { display: flex; align-items: center; gap: 14px; height: 48px; padding: 0 12px; background: #0f6cbd; color: #fff; flex: none; }
+.ol-grid { font-size: 14px; letter-spacing: -2px; width: 28px; text-align: center; }
+.ol-brand { font-size: 17px; font-weight: 600; width: 160px; }
+.ol-search { flex: 0 1 440px; height: 34px; line-height: 34px; padding: 0 12px; background: #fff; color: #616161; border-radius: 4px; }
+.ol-top-right { margin-left: auto; display: flex; align-items: center; }
+.ol-me { display: inline-block; width: 30px; height: 30px; border-radius: 50%; background: #c7d7ea; }
+.ol-body { flex: 1; display: flex; min-height: 0; background: #f5f5f5; }
+.ol-rail { width: 54px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 14px; background: #ebebeb; }
+.ol-rail span { width: 22px; height: 22px; border-radius: 5px; opacity: 0.85; }
+.ol-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ol-tabs { display: flex; align-items: center; gap: 22px; height: 40px; padding: 0 16px; font-size: 15px; }
+.ol-tabs .on { color: #0f6cbd; font-weight: 600; border-bottom: 2px solid #0f6cbd; padding: 8px 0 4px; }
+.ol-next { margin-left: auto; font-size: 12px; font-weight: 600; text-align: right; }
+.ol-next small { display: block; font-weight: 400; color: #424242; }
+.ol-ribbon { display: flex; align-items: flex-start; gap: 4px; height: 86px; margin: 0 8px; padding: 8px 10px; background: #fff; border-radius: 6px; overflow: hidden; }
+.ol-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 52px; font-size: 12px; text-align: center; white-space: nowrap; }
+.ol-btn i, .ol-copilot i { font-style: normal; font-size: 22px; color: #5b5fc7; height: 30px; line-height: 30px; }
+.ol-btn:nth-child(-n+3) i { color: #6b6b6b; }
+.ol-copilot { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; }
+.ol-cols { flex: 1; display: flex; min-height: 0; gap: 8px; padding: 8px; }
+.ol-folders { width: 250px; flex: none; padding: 8px 4px; overflow: hidden; }
+.ol-fav { padding: 10px 14px; font-weight: 600; font-size: 15px; }
+.ol-acct { padding-top: 14px; }
+.ol-redact { background: #e6e6e6; border-radius: 3px; padding: 0 4px; font-weight: 500; font-size: 13px; }
+.ol-folder { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border-radius: 4px; }
+.ol-folder .ic { width: 18px; color: #555; text-align: center; }
+.ol-folder.active { background: #e1e1e1; font-weight: 600; }
+.ol-folder em { margin-left: auto; font-style: normal; font-size: 12px; color: #616161; }
+.ol-num { margin-left: auto; font-size: 13px; color: #0f6cbd; font-weight: 600; }
+
+/* Ô số tín hiệu: xanh = chưa tới lượt; đỏ nhấp nháy + đếm ngược giây = tới lượt bạn. */
+.ol-badge { margin-left: auto; min-width: 20px; text-align: right; font-size: 13px; font-weight: 600; color: #0f6cbd; font-variant-numeric: tabular-nums; }
+.ol-badge.ol-turn { color: #d13438; animation: ol-blink 1.4s ease-in-out infinite; }
+@keyframes ol-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .ol-badge.ol-turn { animation: none; } }
+
+.ol-list { width: 400px; flex: none; background: #fff; border-radius: 6px; overflow: hidden; }
+.ol-list-head { display: flex; gap: 22px; align-items: center; height: 46px; padding: 0 16px 0 48px; font-size: 16px; color: #616161; }
+.ol-list-head b { color: #242424; border-bottom: 3px solid #0f6cbd; padding: 11px 0 5px; }
+.ol-other { padding: 10px 16px 10px 56px; font-size: 14px; border-bottom: 1px solid #ececec; }
+.ol-other small { display: block; color: #616161; }
+.ol-week { padding: 8px 16px; font-weight: 600; background: #fafafa; }
+.ol-mail { display: flex; gap: 12px; padding: 12px 14px 12px 16px; border-bottom: 1px solid #ececec; }
+.ol-mail.sel { background: #cfe4fa; border-left: 3px solid #0f6cbd; }
+.ol-mail .av { width: 36px; height: 36px; flex: none; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; text-align: center; line-height: 36px; }
+.ol-mail .tx { flex: 1; min-width: 0; }
+.ol-mail .r2 { display: flex; justify-content: space-between; gap: 8px; }
+.ol-mail .r2 span, .ol-mail .r3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-mail .r3 { color: #616161; }
+.ol-mail small { flex: none; color: #424242; font-size: 12px; }
+.ol-mail .blue { color: #0f6cbd; }
+
+.ol-read { flex: 1; min-width: 0; background: #fff; border-radius: 6px; padding: 14px 24px; overflow: hidden; }
+.ol-read h2 { margin: 0 0 14px; font-size: 22px; font-weight: 500; }
+.ol-sum { margin-left: 14px; padding: 4px 10px; font-size: 13px; background: #eaf1fb; border-radius: 6px; vertical-align: middle; }
+.ol-card { padding: 12px 8px; }
+.ol-from { display: flex; gap: 12px; align-items: flex-start; }
+.ol-from > div { flex: 1; }
+.ol-from .av.big { width: 48px; height: 48px; border-radius: 50%; background: #b9c8d9; flex: none; }
+.ol-from .to { font-size: 13px; color: #424242; margin-top: 4px; }
+.ol-from .ok { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 50%; background: #2e9e4d; }
+.ol-text { margin-top: 18px; font-size: 14px; line-height: 1.7; }
+.ol-text p { margin: 0 0 18px; }
+.ol-text mark { background: #fff100; padding: 0 4px; }
+.ol-text mark.red { color: #d13438; font-weight: 700; }

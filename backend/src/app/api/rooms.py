@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import DbSession, Guest
 from app.errors import AppError
 from app.realtime.games import GameManager
-from app.realtime.hub import CLOSE_LEFT_ROOM, RoomHub
+from app.realtime.hub import CLOSE_KICKED, CLOSE_LEFT_ROOM, RoomHub
 from app.services import rooms
 
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
@@ -71,8 +71,34 @@ async def leave(room_id: uuid.UUID, request: Request, guest: Guest, db: DbSessio
         await hub.broadcast_state(room_id)
 
 
+class KickBody(BaseModel):
+    seatNo: int = Field(ge=0, le=3)
+
+
+@router.post("/{room_id}/kick", status_code=204)
+async def kick(room_id: uuid.UUID, body: KickBody, request: Request, guest: Guest, db: DbSession) -> None:
+    kicked = await rooms.kick_by_owner(db, guest.id, room_id, body.seatNo)
+    hub = _hub(request)
+    await hub.kick(room_id, kicked, CLOSE_KICKED, "Bị chủ phòng mời ra")
+    await hub.broadcast_state(room_id)
+
+
 @router.post("/{room_id}/close", status_code=204)
 async def close(room_id: uuid.UUID, request: Request, guest: Guest, db: DbSession) -> None:
     await rooms.close_by_owner(db, guest.id, room_id)  # kiểm tra chủ phòng trước (ID 147)
     await request.app.state.games.cancel(room_id, "ROOM_CLOSED")  # Q-P2-3: đóng phòng khi đang chơi → hủy ván
     await _hub(request).close_room(room_id, "OWNER_CLOSED")
+
+
+class PlayerCountBody(BaseModel):
+    playerCount: int = Field(ge=3, le=4)
+
+
+@router.patch("/{room_id}/player-count")
+async def set_player_count(
+    room_id: uuid.UUID, body: PlayerCountBody, request: Request, guest: Guest, db: DbSession
+) -> dict[str, Any]:
+    # Chỉ chủ phòng, chỉ khi phòng đang chờ (kiểm tra trong service).
+    count = await rooms.set_player_count(db, guest.id, room_id, body.playerCount)
+    await _hub(request).broadcast_state(room_id)
+    return {"roomId": str(room_id), "playerCount": count}

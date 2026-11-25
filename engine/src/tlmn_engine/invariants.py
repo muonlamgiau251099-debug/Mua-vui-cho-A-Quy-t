@@ -14,7 +14,7 @@ def check_invariants(state: GameState) -> None:
             raise InvariantViolation(message)
 
     held = [c for p in state.players for c in p.hand]
-    everything = held + state.played
+    everything = held + state.undealt + state.played  # bài thừa không chia (ván 3 người) vẫn thuộc bộ 52 lá
     require(
         len(everything) == DECK_SIZE and set(everything) == set(range(DECK_SIZE)), "52 lá bị trùng hoặc mất"
     )
@@ -39,4 +39,8 @@ def check_invariants(state: GameState) -> None:
         )
         require(len(state.active_seats()) >= 2, "Ván đang chơi phải còn ít nhất 2 người")
     elif state.phase == Phase.FINISHED and state.end_type == "NORMAL":
-        require(sorted(p.rank or 0 for p in state.players) == [1, 2, 3, 4], "Thứ hạng cuối ván phải là 1–4")
+        count = len(state.players)
+        require(
+            sorted(p.rank or 0 for p in state.players) == list(range(1, count + 1)),
+            f"Thứ hạng cuối ván phải là 1–{count}",
+        )

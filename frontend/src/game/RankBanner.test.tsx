@@ -104,7 +104,7 @@ test("bấm Xác nhận để tắt sớm", () => {
   expect(screen.queryByText("AMAZING!")).not.toBeInTheDocument();
 });
 
-test("hết ván: lần lượt công bố hạng Ba rồi Bét", () => {
+test("hết ván: chỉ công bố Bét, không có thông báo hạng Ba", () => {
   const result = ended(
     "NORMAL",
     [
@@ -117,9 +117,8 @@ test("hết ván: lần lượt công bố hạng Ba rồi Bét", () => {
   );
   const { rerender } = render(<RankBanner game={null} result={null} seats={seats} />);
   rerender(<RankBanner game={null} result={result} seats={seats} />);
-  expect(screen.getByText("GREAT JOB!")).toBeInTheDocument();
-  expect(screen.getByText("Minh")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Xác nhận" }));
+  expect(screen.queryByText("GREAT JOB!")).not.toBeInTheDocument();
+  expect(screen.queryByText("Minh")).not.toBeInTheDocument(); // người về Ba không có thông báo
   expect(screen.getByText("HƠI ĐEN!")).toBeInTheDocument();
   expect(screen.getByText("Đức")).toBeInTheDocument();
 });
@@ -143,4 +142,21 @@ test("người cóng cũng nhận thông báo Bét; ván tới trắng thì khô
   const other = render(<RankBanner game={null} result={null} seats={seats} />);
   other.rerender(<RankBanner game={null} result={white} seats={seats} />);
   expect(other.container.querySelector(".rank-banner")).toBeNull();
+});
+
+test("ván 3 người: người về hạng 3 (cuối) nhận thông báo Bét, người về nhì thì không", () => {
+  const result = ended(
+    "NORMAL",
+    [
+      [1, "FINISHED"],
+      [2, "FINISHED"],
+      [3, "FINISHED"],
+    ],
+    [300, -100, -200],
+  );
+  const { rerender } = render(<RankBanner game={null} result={null} seats={seats} />);
+  rerender(<RankBanner game={null} result={result} seats={seats} />);
+  expect(screen.getByText("HƠI ĐEN!")).toBeInTheDocument();
+  expect(screen.getByText("Minh")).toBeInTheDocument(); // ghế 2 về cuối
+  expect(screen.queryByText("Huy")).not.toBeInTheDocument(); // ghế 1 về nhì: không có thông báo ở cuối ván
 });
